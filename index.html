@@ -54,13 +54,55 @@ const lexicon = {
 function play(){
   if(!ctx) return alert("Start audio first");
 
-  let words=document.getElementById("text").value.toLowerCase().split(" ");
-  let t=ctx.currentTime;
+  let words = document.getElementById("text").value.toLowerCase().split(" ");
+  let t = ctx.currentTime;
 
-  words.forEach(w=>{
+  words.forEach((w,i)=>{
+
     let freqs = lexicon[w] || [60];
-    playChord(freqs.map(midiToFreq), t, 0.4);
-    t+=0.5;
+
+    // --- DURATION RULES ---
+    let dur = 0.3;
+
+    if(["do","the","a","an"].includes(w)) dur = 0.18;          // short filler
+    else if(["we","you","i"].includes(w)) dur = 0.25;          // pronouns
+    else if(["see","build","make","go"].includes(w)) dur = 0.5; // verbs longer
+    else if(["danger","water","home"].includes(w)) dur = 0.4;   // nouns medium
+
+    // --- TEMPO VARIATION ---
+    let tempoVariance = 0.85 + Math.random() * 0.4; // random speed
+
+    // --- STRESS (louder verbs/nouns) ---
+    let gain = 0.1;
+    if(["see","build","make","danger","water"].includes(w)){
+      gain = 0.18;
+    }
+
+    // play sound
+    freqs.forEach(f=>{
+      let o = ctx.createOscillator();
+      let g = ctx.createGain();
+
+      o.type="triangle";
+      o.frequency.value = midiToFreq(f);
+
+      g.gain.value = gain;
+
+      o.connect(g).connect(ctx.destination);
+      o.start(t);
+      o.stop(t + dur);
+
+    });
+
+    // --- SPACING ---
+    let gap = 0.15 * tempoVariance;
+
+    // longer pauses after key words
+    if(["danger","water","home"].includes(w)){
+      gap += 0.2;
+    }
+
+    t += dur + gap;
   });
 }
 </script>
