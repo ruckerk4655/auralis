@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auralis</title>
+</head>
+<body style="font-family:sans-serif;padding:20px;">
+
+<h2>Auralis</h2>
+
+<button onclick="startAudio()">Start Audio</button> <button onclick="testBeep()">Test Beep</button> <br><br>
+
+<input id="text" value="we do not see danger" style="width:300px;">
+<button onclick="play()">Play Phrase</button>
+
+<script>
+let ctx;
+
+function startAudio(){
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function testBeep(){
+  if(!ctx) return alert("Start audio first");
+  playChord([440], ctx.currentTime, 0.3);
+}
+
+function midiToFreq(m){
+  return 440 * Math.pow(2,(m-69)/12);
+}
+
+function playChord(freqs, t, dur=0.4){
+  freqs.forEach(f=>{
+    let o = ctx.createOscillator();
+    let g = ctx.createGain();
+    o.type="triangle";
+    o.frequency.value=f;
+    g.gain.value=0.1;
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t+dur);
+  });
+}
+
+const lexicon = {
+  "we":[60,67],
+  "do":[62],
+  "not":[36],
+  "see":[62,65],
+  "danger":[60,61,67]
+};
+
+function play(){
+  if(!ctx) return alert("Start audio first");
+
+  let words=document.getElementById("text").value.toLowerCase().split(" ");
+  let t=ctx.currentTime;
+
+  words.forEach(w=>{
+    let freqs = lexicon[w] || [60];
+    playChord(freqs.map(midiToFreq), t, 0.4);
+    t+=0.5;
+  });
+}
+</script>
+
+</body>
+</html>
