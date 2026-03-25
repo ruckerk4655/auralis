@@ -54,56 +54,216 @@ const lexicon = {
 function play(){
   if(!ctx) return alert("Start audio first");
 
-  let words = document.getElementById("text").value.toLowerCase().split(" ");
-  let t = ctx.currentTime;
+  const text = document.getElementById("text").value.trim().toLowerCase();
+  const tokens = text.match(/[a-z']+|[?!,.;]/g) || [];
+  let t = ctx.currentTime + 0.03;
 
-  words.forEach((w,i)=>{
+  const isQuestion = tokens.includes("?") || ["why","what","how","where","who","when"].includes(tokens[0]);
+  const isExclaim = tokens.includes("!");
 
-    let freqs = lexicon[w] || [60];
+  const FUNCTION_WORDS = new Set([
+    "a","an","the","of","to","in","on","at","for","from","with","and","but","or",
+    "if","then","so","as","by","we","i","you","he","she","it","they","do","does",
+    "did","is","are","was","were","will","shall","not","no"
+  ]);
 
-    // --- DURATION RULES ---
-    let dur = 0.3;
+  const VERBS = new Set([
+    "see","build","make","go","find","know","love","want","send","hear","follow",
+    "move","leave","search","travel","listen","understand"
+  ]);
 
-    if(["do","the","a","an"].includes(w)) dur = 0.18;          // short filler
-    else if(["we","you","i"].includes(w)) dur = 0.25;          // pronouns
-    else if(["see","build","make","go"].includes(w)) dur = 0.5; // verbs longer
-    else if(["danger","water","home"].includes(w)) dur = 0.4;   // nouns medium
+  const ADJECTIVES = new Set([
+    "dangerous","bright","dark","new","silent","strange","beautiful","cold","warm"
+  ]);
 
-    // --- TEMPO VARIATION ---
-    let tempoVariance = 0.85 + Math.random() * 0.4; // random speed
+  const NOUNS = new Set([
+    "danger","water","home","signal","world","music","stars","star","machine",
+    "system","light","space","truth","pattern"
+  ]);
 
-    // --- STRESS (louder verbs/nouns) ---
-    let gain = 0.1;
-    if(["see","build","make","danger","water"].includes(w)){
-      gain = 0.18;
-    }
+  function midiToFreq(m){
+    return 440 * Math.pow(2, (m - 69) / 12);
+  }
 
-    // play sound
-    freqs.forEach(f=>{
-      let o = ctx.createOscillator();
-      let g = ctx.createGain();
+  function playChord(freqs, start, dur, gainAmt=0.12, wave="triangle"){
+    freqs.forEach((f, idx) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
 
-      o.type="triangle";
-      o.frequency.value = midiToFreq(f);
+      o.type = wave;
+      o.frequency.setValueAtTime(f, start);
 
-      g.gain.value = gain;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(gainAmt, start + 0.015);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gainAmt * 0.55), start + dur * 0.55);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
 
       o.connect(g).connect(ctx.destination);
-      o.start(t);
-      o.stop(t + dur);
-
+      o.start(start + idx * 0.002);
+      o.stop(start + dur + 0.03);
     });
+  }
 
-    // --- SPACING ---
-    let gap = 0.15 * tempoVariance;
+  function wordToMidi(word){
+    const lexicon = {
+      "we":[60,67],
+      "i":[60],
+      "you":[64],
+      "do":[62],
+      "not":[36],
+      "see":[62,65],
+      "danger":[60,61,67],
+      "dangerous":[60,61,67],
+      "water":[65,69],
+      "home":[48,55,60],
+      "signal":[67,71,74],
+      "love":[60,64,67],
+      "music":[60,64,67],
+      "stars":[72,79],
+      "star":[72,79],
+      "build":[50,55,57],
+      "new":[64,69],
+      "world":[43,50,55],
+      "light":[72,76,79]
+    };
 
-    // longer pauses after key words
-    if(["danger","water","home"].includes(w)){
-      gap += 0.2;
+    if (lexicon[word]) return lexicon[word];
+
+    let sum = 0;
+    for (let i = 0; i < word.length; i++) sum += word.charCodeAt(i);
+    const root = 48 + (sum % 18);
+
+    if (word.length <= 3) return [root];
+    if (word.length <= 6) return [root, root + 7];
+    return [root, root + 3, root + 7];
+  }
+
+  function classify(word){
+    if (/^[?!,.;]$/.test(word)) return "punct";
+    if (FUNCTION_WORDS.has(word)) return "function";
+    if (VERBS.has(word)) return "verb";
+    if (ADJECTIVES.has(word)) return "adjective";
+    if (NOUNS.has(word)) return "noun";
+    if (word.endsWith("ly")) return "adverb";
+    if (word.endsWith("ing") || word.endsWith("ed")) return "verb";
+    if (word.endsWith("ous") || word.endsWith("ful") || word.endsWith("ive")) return "adjective";
+    return "noun";
+  }
+
+  function wordProfile(word, index, total){
+    const type = classify(word);
+
+    let dur = 0.26;
+    let gap = 0.04;
+    let gain = 0.11;
+    let transpose = 0;
+
+    if (type === "function") {
+      dur = 0.11 + Math.random() * 0.03;
+      gap = 0.005 + Math.random() * 0.015;
+      gain = 0.07;
+    } else if (type === "verb") {
+      dur = 0.28 + Math.random() * 0.10;
+      gap = 0.015 + Math.random() * 0.025;
+      gain = 0.14;
+    } else if (type === "adjective") {
+      dur = 0.20 + Math.random() * 0.07;
+      gap = 0.01 + Math.random() * 0.02;
+      gain = 0.10;
+    } else if (type === "adverb") {
+      dur = 0.18 + Math.random() * 0.06;
+      gap = 0.008 + Math.random() * 0.02;
+      gain = 0.09;
+    } else if (type === "noun") {
+      dur = 0.24 + Math.random() * 0.09;
+      gap = 0.02 + Math.random() * 0.03;
+      gain = 0.13;
     }
 
-    t += dur + gap;
-  });
+    // sentence-final lengthening
+    if (index === total - 1) {
+      dur *= isQuestion ? 1.45 : 1.30;
+      gap += isQuestion ? 0.08 : 0.05;
+    }
+
+    // opening words are a little tighter
+    if (index < 2) {
+      gap *= 0.75;
+    }
+
+    // slight prosody arc across sentence
+    const progress = total <= 1 ? 0 : index / (total - 1);
+    if (isQuestion) {
+      transpose = Math.round(progress * 4); // gradual rise
+    } else {
+      transpose = Math.round((0.5 - progress) * 2); // slight arc then settle
+    }
+
+    // exclamation: more energy
+    if (isExclaim) {
+      dur *= 0.95;
+      gain *= 1.15;
+      transpose += 2;
+    }
+
+    return { type, dur, gap, gain, transpose };
+  }
+
+  let contentCount = 0;
+
+  for (let i = 0; i < tokens.length; i++) {
+    const w = tokens[i];
+
+    if (w === "," || w === ";") {
+      t += 0.14 + Math.random() * 0.06;
+      continue;
+    }
+    if (w === ".") {
+      t += 0.20;
+      continue;
+    }
+    if (w === "?" || w === "!") {
+      continue;
+    }
+
+    const mids = wordToMidi(w);
+    const profile = wordProfile(w, contentCount, tokens.filter(x => !/^[?!,.;]$/.test(x)).length);
+
+    // microtiming: small natural offset
+    const micro = (Math.random() - 0.5) * 0.03;
+
+    const shifted = mids.map(m => m + profile.transpose);
+    const freqs = shifted.map(midiToFreq);
+
+    playChord(freqs, t + micro, profile.dur, profile.gain, "triangle");
+
+    // speech-like pacing:
+    // next word starts before a full equal gap grid
+    t += profile.dur * 0.62 + profile.gap;
+
+    // extra noun phrase grouping:
+    // adjective + noun stay close together
+    const next = tokens[i + 1];
+    if (classify(w) === "adjective" && classify(next) === "noun") {
+      t -= 0.03;
+    }
+
+    // pronoun + verb stay close together
+    if (classify(w) === "function" && classify(next) === "verb") {
+      t -= 0.02;
+    }
+
+    contentCount++;
+  }
+
+  // ending cadence
+  if (isQuestion) {
+    playChord([midiToFreq(67), midiToFreq(71)], t, 0.22, 0.11, "triangle");
+  } else if (isExclaim) {
+    playChord([midiToFreq(72), midiToFreq(76), midiToFreq(79)], t, 0.26, 0.13, "triangle");
+  } else {
+    playChord([midiToFreq(64), midiToFreq(60)], t, 0.22, 0.10, "triangle");
+  }
 }
 </script>
 
