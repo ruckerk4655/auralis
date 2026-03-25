@@ -8,13 +8,13 @@
   body {
     font-family: Arial, sans-serif;
     padding: 20px;
-    max-width: 900px;
+    max-width: 980px;
     margin: 0 auto;
     line-height: 1.4;
   }
   textarea {
     width: 100%;
-    min-height: 180px;
+    min-height: 220px;
     font-size: 18px;
     padding: 12px;
     box-sizing: border-box;
@@ -47,9 +47,9 @@
 <body>
 
 <h2>Auralis</h2>
-<p>Type English and hear a more layered non-human musical language.</p>
+<p>Type English and hear a layered non-human musical language.</p>
 
-<textarea id="text">we do not see the dangerous water beyond the silent world</textarea>
+<textarea id="text">we do not see the dangerous water beyond the silent world and we follow the strange signal</textarea>
 
 <div class="row">
   <button id="startBtn">Start Audio</button>
@@ -69,9 +69,9 @@
   </label>
 
   <label>Tempo
-    <input id="tempo" type="range" min="70" max="220" value="145">
+    <input id="tempo" type="range" min="70" max="260" value="165">
   </label>
-  <span id="tempoValue">145 BPM</span>
+  <span id="tempoValue">165 BPM</span>
 </div>
 
 <div id="status">Status: not started</div>
@@ -82,41 +82,62 @@ let ctx = null;
 let master = null;
 let activeNodes = [];
 
+// --------------------------------------------------
+// CORE WORD CLASSES
+// --------------------------------------------------
 const FUNCTION_WORDS = new Set([
   "a","an","the","of","to","in","on","at","for","from","with","and","but","or",
   "if","then","so","as","by","we","i","you","he","she","it","they","do","does",
-  "did","is","are","was","were","will","shall","not","no","our","your","their"
+  "did","is","are","was","were","will","shall","not","no","our","your","their",
+  "my","his","her","its","this","that","these","those","be","been","being",
+  "am","can","could","should","would","may","might","must"
 ]);
 
 const VERBS = new Set([
   "see","build","make","go","find","know","love","want","send","hear","follow",
-  "move","leave","search","travel","listen","understand","remember","trust"
+  "move","leave","search","travel","listen","understand","remember","trust",
+  "learn","speak","sing","call","watch","touch","hold","bring","carry","shape",
+  "open","close","begin","end","rise","fall","change","create","destroy",
+  "discover","explore","decode","observe","protect","guide","signal","return"
 ]);
 
 const ADJECTIVES = new Set([
   "dangerous","bright","dark","new","silent","strange","beautiful","cold","warm",
-  "distant","ancient","deep","unknown","powerful"
+  "distant","ancient","deep","unknown","powerful","fragile","hidden","golden",
+  "vast","small","great","gentle","wild","broken","clear","shifting","electric",
+  "harmonic","alien","human","living","empty","glowing","secret","endless"
 ]);
 
 const NOUNS = new Set([
   "danger","water","home","signal","world","music","stars","star","machine",
-  "system","light","space","truth","pattern","planet","sky","fire","memory"
+  "system","light","space","truth","pattern","planet","sky","fire","memory",
+  "ocean","river","forest","storm","wind","stone","metal","voice","language",
+  "planet","sun","moon","ship","bridge","door","path","dream","mind","heart",
+  "energy","echo","shadow","time","future","past","code","message","name",
+  "friend","enemy","city","mountain","field","song","wave","flame","night","day"
 ]);
 
+// --------------------------------------------------
+// BASE SEEDED WORDS
+// --------------------------------------------------
 const seedLexicon = {
   we:         { type:"pronoun",  motif:[[48,55,60],[60,67]], dur:[0.12,0.16], amp:0.12 },
   i:          { type:"pronoun",  motif:[[48,60]], dur:[0.16], amp:0.11 },
   you:        { type:"pronoun",  motif:[[52,64]], dur:[0.16], amp:0.11 },
+  they:       { type:"pronoun",  motif:[[50,62],[57,69]], dur:[0.12,0.14], amp:0.11 },
 
   do:         { type:"function", motif:[[50,62]], dur:[0.10], amp:0.08 },
   not:        { type:"negation", motif:[[36,48],[39,51]], dur:[0.10,0.12], amp:0.10 },
   the:        { type:"function", motif:[[47,59]], dur:[0.08], amp:0.07 },
   a:          { type:"function", motif:[[48,60]], dur:[0.08], amp:0.07 },
+  and:        { type:"function", motif:[[52,64],[55,67]], dur:[0.06,0.08], amp:0.07 },
 
   see:        { type:"verb",     motif:[[62,69],[65,72],[57,64,69]], dur:[0.08,0.10,0.16], amp:0.13 },
   build:      { type:"verb",     motif:[[50,62],[55,67],[57,69,81]], dur:[0.08,0.08,0.18], amp:0.14 },
   love:       { type:"verb",     motif:[[60,67,72],[64,67,76],[55,67,79]], dur:[0.10,0.10,0.18], amp:0.14 },
   find:       { type:"verb",     motif:[[59,71],[64,76],[52,64,71]], dur:[0.08,0.10,0.16], amp:0.13 },
+  follow:     { type:"verb",     motif:[[55,67],[59,71],[62,74,86]], dur:[0.08,0.10,0.18], amp:0.14 },
+  hear:       { type:"verb",     motif:[[57,69],[60,72],[64,76,88]], dur:[0.08,0.10,0.16], amp:0.13 },
 
   danger:     { type:"noun",     motif:[[48,60,67],[49,61,73],[36,48,60]], dur:[0.10,0.12,0.20], amp:0.15 },
   dangerous:  { type:"adjective",motif:[[60,72],[61,73],[55,67,79]], dur:[0.08,0.10,0.14], amp:0.12 },
@@ -125,6 +146,7 @@ const seedLexicon = {
   signal:     { type:"noun",     motif:[[67,79],[71,83],[62,74,86]], dur:[0.06,0.08,0.14], amp:0.13 },
   world:      { type:"noun",     motif:[[43,55,67],[50,62],[55,67,79]], dur:[0.10,0.12,0.20], amp:0.14 },
   stars:      { type:"noun",     motif:[[72,84],[79,91],[76,88]], dur:[0.06,0.10,0.12], amp:0.13 },
+  star:       { type:"noun",     motif:[[72,84],[79,91],[76,88]], dur:[0.06,0.10,0.12], amp:0.13 },
   light:      { type:"noun",     motif:[[72,84],[76,88],[79,91]], dur:[0.06,0.08,0.14], amp:0.13 },
 
   strange:    { type:"adjective",motif:[[58,70],[61,73],[55,67,79]], dur:[0.08,0.08,0.14], amp:0.11 },
@@ -133,6 +155,32 @@ const seedLexicon = {
   dark:       { type:"adjective",motif:[[45,57,69],[48,60],[40,52,64]], dur:[0.10,0.12,0.16], amp:0.11 }
 };
 
+// --------------------------------------------------
+// BIG VOCAB LISTS
+// --------------------------------------------------
+const BIG_WORD_BANK = [
+  "above","across","after","again","against","air","alive","alone","always","amber",
+  "among","answer","arrival","ash","awake","away","balance","beam","become","before",
+  "below","beneath","between","beyond","black","blue","body","boundary","breath","burn",
+  "call","calm","captain","center","child","circle","clear","cloud","coast","color",
+  "companion","crystal","current","dance","data","dawn","deep","desert","distance","drift",
+  "east","edge","ember","empty","engine","entry","evening","everything","eye","face",
+  "far","field","flare","flow","forest","form","frequency","friend","garden","gate",
+  "glass","glow","gold","gravity","green","ground","guide","hand","harbor","harmony",
+  "height","horizon","hour","human","ice","idea","image","inside","island","journey",
+  "key","kind","king","lake","leaf","line","living","map","mark","mirror","morning",
+  "motion","mountain","near","night","north","note","object","ocean","origin","outside",
+  "peak","people","phase","plain","point","portal","presence","pulse","purple","queen",
+  "quiet","range","red","reflection","response","road","room","root","sand","sea",
+  "secret","shape","ship","shore","silver","sky","sleep","snow","south","spark",
+  "spirit","spring","stone","story","stream","structure","summer","surface","symbol","task",
+  "temple","thread","tone","tower","trace","trail","tree","valley","vision","voice",
+  "wall","way","west","white","window","winter","word","yellow","young","zero"
+];
+
+// --------------------------------------------------
+// UTILS
+// --------------------------------------------------
 function setStatus(msg) {
   document.getElementById("status").innerText = "Status: " + msg;
 }
@@ -151,6 +199,10 @@ function hashWord(word) {
     h = (h * 31 + word.charCodeAt(i)) >>> 0;
   }
   return h;
+}
+
+function cloneEntry(obj) {
+  return JSON.parse(JSON.stringify(obj));
 }
 
 async function ensureAudio() {
@@ -184,7 +236,7 @@ function playChord(freqs, start, dur, gainAmt = 0.12, wave = "triangle") {
     o.frequency.setValueAtTime(freq, start);
 
     g.gain.setValueAtTime(0.0001, start);
-    g.gain.exponentialRampToValueAtTime(gainAmt, start + 0.012);
+    g.gain.exponentialRampToValueAtTime(gainAmt, start + 0.010);
     g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gainAmt * 0.65), start + dur * 0.45);
     g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
 
@@ -204,27 +256,35 @@ function classify(word) {
   if (NOUNS.has(word)) return "noun";
   if (word.endsWith("ly")) return "adverb";
   if (word.endsWith("ing") || word.endsWith("ed")) return "verb";
-  if (word.endsWith("ous") || word.endsWith("ful") || word.endsWith("ive")) return "adjective";
+  if (word.endsWith("ous") || word.endsWith("ful") || word.endsWith("ive") || word.endsWith("al")) return "adjective";
+  if (word.endsWith("tion") || word.endsWith("ness") || word.endsWith("ment") || word.endsWith("ship")) return "noun";
   return "noun";
 }
 
-function makeGeneratedEntry(word) {
+// --------------------------------------------------
+// KNOWN-WORD GENERATION
+// --------------------------------------------------
+function makeKnownEntry(word) {
   const h = hashWord(word);
   const type = classify(word);
-  const root = 42 + (h % 24);
+  const root = 40 + (h % 26);
 
-  const major = [root, root + 4, root + 7];
-  const minor = [root, root + 3, root + 7];
-  const octaveMajor = [root, root + 12, root + 16, root + 19];
-  const octaveMinor = [root, root + 12, root + 15, root + 19];
-  const bright = [root + 7, root + 19, root + 23];
-  const dark = [root - 5, root + 7, root + 19];
+  const major      = [root, root + 4, root + 7];
+  const minor      = [root, root + 3, root + 7];
+  const sus        = [root, root + 5, root + 7];
+  const octaveMaj  = [root, root + 12, root + 16, root + 19];
+  const octaveMin  = [root, root + 12, root + 15, root + 19];
+  const bright     = [root + 7, root + 19, root + 23];
+  const dark       = [root - 5, root + 7, root + 19];
+  const upper      = [root + 12, root + 19];
+  const upperWide  = [root + 12, root + 24];
+  const cluster    = [root, root + 1, root + 7, root + 12];
 
   if (type === "function") {
     return {
       type,
-      motif: [[root, root + 12]],
-      dur: [0.07 + (h % 3) * 0.01],
+      motif: [[root, root + 12], [root + 7, root + 19]],
+      dur: [0.05, 0.07],
       amp: 0.07
     };
   }
@@ -233,11 +293,12 @@ function makeGeneratedEntry(word) {
     return {
       type,
       motif: [
-        (h % 2 === 0 ? octaveMinor : octaveMajor),
-        (h % 3 === 0 ? bright : major),
-        (h % 2 === 0 ? dark : [root + 5, root + 17, root + 24])
+        (h % 2 ? octaveMin : octaveMaj),
+        (h % 3 ? bright : sus),
+        (h % 5 ? [root + 5, root + 17, root + 24] : dark),
+        (h % 7 ? major : minor)
       ],
-      dur: [0.07, 0.09, 0.15],
+      dur: [0.05, 0.07, 0.09, 0.13],
       amp: 0.13
     };
   }
@@ -246,10 +307,11 @@ function makeGeneratedEntry(word) {
     return {
       type,
       motif: [
-        [root + 12, root + 19],
-        (h % 2 === 0 ? octaveMajor : octaveMinor)
+        upper,
+        (h % 2 ? octaveMaj : octaveMin),
+        (h % 3 ? [root + 5, root + 17] : bright)
       ],
-      dur: [0.07, 0.13],
+      dur: [0.05, 0.08, 0.10],
       amp: 0.10
     };
   }
@@ -258,11 +320,12 @@ function makeGeneratedEntry(word) {
     return {
       type,
       motif: [
-        [root + 12, root + 24],
+        upperWide,
         [root + 7, root + 19],
-        [root + 12, root + 16, root + 24]
+        [root + 12, root + 16, root + 24],
+        [root + 5, root + 17, root + 22]
       ],
-      dur: [0.05, 0.06, 0.10],
+      dur: [0.04, 0.05, 0.07, 0.09],
       amp: 0.09
     };
   }
@@ -270,17 +333,87 @@ function makeGeneratedEntry(word) {
   return {
     type: "noun",
     motif: [
-      (h % 2 === 0 ? octaveMajor : octaveMinor),
-      (h % 3 === 0 ? bright : [root + 5, root + 17]),
-      (h % 5 === 0 ? dark : major)
+      (h % 2 ? octaveMaj : octaveMin),
+      (h % 3 ? [root + 5, root + 17] : bright),
+      (h % 5 ? dark : cluster),
+      (h % 7 ? major : minor)
     ],
-    dur: [0.08, 0.10, 0.16],
+    dur: [0.06, 0.08, 0.10, 0.14],
     amp: 0.12
   };
 }
 
+// --------------------------------------------------
+// UNKNOWN-WORD / PROPER-NAME GENERATION
+// --------------------------------------------------
+function makeUnknownEntry(word) {
+  const h = hashWord(word);
+  const root = 36 + (h % 30);
+  const syllables = Math.max(2, Math.min(5, Math.ceil(word.length / 3)));
+
+  const choices = [
+    [root, root + 12, root + 19],
+    [root, root + 12, root + 15, root + 19],
+    [root + 5, root + 17, root + 24],
+    [root + 7, root + 19, root + 23],
+    [root - 5, root + 7, root + 19],
+    [root, root + 1, root + 7, root + 12],
+    [root + 12, root + 24],
+    [root + 4, root + 16, root + 23]
+  ];
+
+  const motif = [];
+  const dur = [];
+
+  for (let i = 0; i < syllables + 1; i++) {
+    const pick = choices[(h + i * 3) % choices.length].map(n => clamp(n + ((i % 2) ? 2 : 0), 30, 96));
+    motif.push(pick);
+    dur.push(i === syllables ? 0.14 : 0.05 + ((h + i) % 3) * 0.02);
+  }
+
+  return {
+    type: "unknown",
+    motif,
+    dur,
+    amp: 0.14
+  };
+}
+
+// --------------------------------------------------
+// BUILD HUGE VOCAB
+// --------------------------------------------------
+const lexicon = {};
+
+Object.keys(seedLexicon).forEach(k => {
+  lexicon[k] = cloneEntry(seedLexicon[k]);
+});
+
+BIG_WORD_BANK.forEach(word => {
+  if (!lexicon[word]) {
+    lexicon[word] = makeKnownEntry(word);
+  }
+});
+
+// Add lots more auto-generated variants to massively expand built-in vocab
+for (const base of BIG_WORD_BANK) {
+  const variants = [
+    base + "s",
+    base + "ed",
+    base + "ing"
+  ];
+  for (const v of variants) {
+    if (!lexicon[v]) {
+      lexicon[v] = makeKnownEntry(v);
+    }
+  }
+}
+
+// --------------------------------------------------
+// WORD RESOLUTION
+// --------------------------------------------------
 function getEntry(word) {
-  return seedLexicon[word] ? JSON.parse(JSON.stringify(seedLexicon[word])) : makeGeneratedEntry(word);
+  if (lexicon[word]) return cloneEntry(lexicon[word]);
+  return makeUnknownEntry(word);
 }
 
 function shapeEntry(word, entry, position, totalWords, isQuestion, isExclaim) {
@@ -288,49 +421,59 @@ function shapeEntry(word, entry, position, totalWords, isQuestion, isExclaim) {
   const progress = totalWords <= 1 ? 0 : position / (totalWords - 1);
 
   if (type === "function") {
-    entry.dur = entry.dur.map(d => d * 0.8);
-    entry.amp *= 0.9;
+    entry.dur = entry.dur.map(d => d * 0.78);
+    entry.amp *= 0.88;
   } else if (type === "verb") {
-    entry.dur = entry.dur.map(d => d * 1.12);
-    entry.amp *= 1.08;
+    entry.dur = entry.dur.map(d => d * 1.10);
+    entry.amp *= 1.06;
   } else if (type === "noun") {
+    entry.dur = entry.dur.map(d => d * 1.03);
+    entry.amp *= 1.02;
+  } else if (type === "unknown") {
     entry.dur = entry.dur.map(d => d * 1.04);
-    entry.amp *= 1.04;
+    entry.amp *= 1.05;
   }
 
   let transpose = 0;
   if (isQuestion) {
     transpose = Math.round(progress * 5);
   } else {
-    transpose = Math.round((0.4 - progress) * 2);
+    transpose = Math.round((0.35 - progress) * 2);
   }
   if (isExclaim) transpose += 2;
 
-  entry.motif = entry.motif.map(chord => chord.map(n => clamp(n + transpose, 30, 96)));
+  entry.motif = entry.motif.map(chord =>
+    chord.map(n => clamp(n + transpose, 30, 96))
+  );
 
   if (position === totalWords - 1) {
-    entry.dur = entry.dur.map(d => d * (isQuestion ? 1.25 : 1.15));
+    entry.dur = entry.dur.map(d => d * (isQuestion ? 1.22 : 1.12));
   }
 
   return entry;
 }
 
 function tokenize(text) {
-  return text.match(/[a-z']+|[?!,.;]/gi) || [];
+  return text.match(/[a-zA-Z']+|[?!,.;]/g) || [];
 }
 
+// --------------------------------------------------
+// PLAYBACK
+// --------------------------------------------------
 async function play() {
   await ensureAudio();
   stopAll();
 
-  const text = document.getElementById("text").value.trim().toLowerCase();
+  const rawText = document.getElementById("text").value.trim();
   const waveform = document.getElementById("waveform").value;
   const bpm = Number(document.getElementById("tempo").value);
 
-  const tokens = tokenize(text);
+  const tokens = tokenize(rawText);
   const wordsOnly = tokens.filter(t => !/^[?!,.;]$/.test(t));
+  const lowerWords = wordsOnly.map(w => w.toLowerCase());
 
-  const isQuestion = tokens.includes("?") || ["why","what","how","where","who","when"].includes(wordsOnly[0] || "");
+  const firstWord = lowerWords[0] || "";
+  const isQuestion = tokens.includes("?") || ["why","what","how","where","who","when"].includes(firstWord);
   const isExclaim = tokens.includes("!");
 
   let t = ctx.currentTime + 0.03;
@@ -339,63 +482,61 @@ async function play() {
   for (let i = 0, wordIndex = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
-    if (token === ",") { t += 0.10; continue; }
-    if (token === ";") { t += 0.14; continue; }
-    if (token === ".") { t += 0.18; continue; }
+    if (token === ",") { t += 0.08; continue; }
+    if (token === ";") { t += 0.12; continue; }
+    if (token === ".") { t += 0.16; continue; }
     if (token === "?" || token === "!") { continue; }
 
-    let entry = getEntry(token);
-    entry = shapeEntry(token, entry, wordIndex, wordsOnly.length, isQuestion, isExclaim);
+    const lower = token.toLowerCase();
+    let entry = getEntry(lower);
+    entry = shapeEntry(lower, entry, wordIndex, wordsOnly.length, isQuestion, isExclaim);
 
-    const type = entry.type;
     const beatScale = 110 / bpm;
+    let overlapFactor = 0.68;
 
-    // tighter function words, looser content words
-    let overlapFactor = 0.72;
-    if (type === "function") overlapFactor = 0.90;
-    if (type === "verb") overlapFactor = 0.62;
-    if (type === "noun") overlapFactor = 0.66;
-    if (type === "adjective") overlapFactor = 0.70;
+    if (entry.type === "function") overlapFactor = 0.88;
+    if (entry.type === "verb") overlapFactor = 0.60;
+    if (entry.type === "noun") overlapFactor = 0.64;
+    if (entry.type === "adjective") overlapFactor = 0.67;
+    if (entry.type === "unknown") overlapFactor = 0.62;
 
     for (let j = 0; j < entry.motif.length; j++) {
       const chord = entry.motif[j];
       const dur = entry.dur[j] * beatScale;
       const freqs = chord.map(midiToFreq);
-      const micro = (Math.random() - 0.5) * 0.012;
+      const micro = (Math.random() - 0.5) * 0.010;
 
       playChord(freqs, t + micro, dur, Math.min(0.18, entry.amp), waveform);
-
       t += dur * overlapFactor;
     }
 
-    const next = tokens[i + 1] || "";
-    let phraseGap = 0.012 * beatScale;
+    const next = (tokens[i + 1] || "").toLowerCase();
+    let phraseGap = 0.010 * beatScale;
 
-    if (type === "function") phraseGap = 0.004 * beatScale;
-    if (type === "verb") phraseGap = 0.014 * beatScale;
-    if (type === "noun") phraseGap = 0.018 * beatScale;
+    if (entry.type === "function") phraseGap = 0.003 * beatScale;
+    if (entry.type === "verb") phraseGap = 0.012 * beatScale;
+    if (entry.type === "noun") phraseGap = 0.015 * beatScale;
+    if (entry.type === "unknown") phraseGap = 0.010 * beatScale;
 
-    // adjective + noun cling together
-    if (type === "adjective" && classify(next) === "noun") {
+    if (entry.type === "adjective" && classify(next) === "noun") {
       phraseGap *= 0.25;
     }
 
-    // pronoun/function + verb cling together
-    if (type === "function" && classify(next) === "verb") {
+    if ((entry.type === "function" || entry.type === "pronoun") && classify(next) === "verb") {
       phraseGap *= 0.35;
     }
 
     t += phraseGap;
 
+    const source = lexicon[lower] ? "known" : "fallback";
     analysis.push(
-      `${token} | ${type} | ` +
+      `${token} | ${entry.type} | ${source} | ` +
       entry.motif.map(ch => "[" + ch.join(",") + "]").join(" ")
     );
 
     wordIndex++;
   }
 
-  // cadence
   if (isQuestion) {
     playChord([midiToFreq(67), midiToFreq(79), midiToFreq(83)], t, 0.18 * (110 / bpm), 0.10, waveform);
   } else if (isExclaim) {
@@ -404,20 +545,27 @@ async function play() {
     playChord([midiToFreq(60), midiToFreq(72), midiToFreq(79)], t, 0.18 * (110 / bpm), 0.09, waveform);
   }
 
-  document.getElementById("analysis").innerText = analysis.join("\n");
+  document.getElementById("analysis").innerText =
+    `Built-in vocabulary size: ${Object.keys(lexicon).length}\n\n` + analysis.join("\n");
+
   setStatus("playing");
 }
 
+// --------------------------------------------------
+// UI
+// --------------------------------------------------
 document.getElementById("tempo").addEventListener("input", e => {
   document.getElementById("tempoValue").innerText = `${e.target.value} BPM`;
 });
 
 document.getElementById("startBtn").addEventListener("click", ensureAudio);
+
 document.getElementById("beepBtn").addEventListener("click", async () => {
   await ensureAudio();
-  playChord([440, 660], ctx.currentTime, 0.25, 0.12, "square");
+  playChord([440, 660, 880], ctx.currentTime, 0.25, 0.12, "square");
   setStatus("beep played");
 });
+
 document.getElementById("playBtn").addEventListener("click", play);
 document.getElementById("stopBtn").addEventListener("click", stopAll);
 </script>
