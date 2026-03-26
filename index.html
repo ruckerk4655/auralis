@@ -74,7 +74,7 @@
 <body>
 
 <h2>Auralis</h2>
-<p>Type English and hear each word as a combined event: notes and robotic English start together, then the next word begins after the current one finishes.</p>
+<p>Each word is now one combined event: notes and English start together, and the notes sustain until the spoken word finishes.</p>
 
 <textarea id="text">why do you follow the strange signal from Commander Raleth beyond the silver ocean?</textarea>
 
@@ -173,38 +173,38 @@ const NOUNS = new Set([
 // BASE SEEDED WORDS
 // --------------------------------------------------
 const seedLexicon = {
-  we:         { type:"pronoun",  motif:[[48,55,60],[60,67]], dur:[0.12,0.16], amp:0.12 },
-  i:          { type:"pronoun",  motif:[[48,60]], dur:[0.16], amp:0.11 },
-  you:        { type:"pronoun",  motif:[[52,64]], dur:[0.16], amp:0.11 },
-  they:       { type:"pronoun",  motif:[[50,62],[57,69]], dur:[0.12,0.14], amp:0.11 },
+  we:         { type:"pronoun",  motif:[[48,55,60],[60,67]], amp:0.12 },
+  i:          { type:"pronoun",  motif:[[48,60]], amp:0.11 },
+  you:        { type:"pronoun",  motif:[[52,64]], amp:0.11 },
+  they:       { type:"pronoun",  motif:[[50,62],[57,69]], amp:0.11 },
 
-  do:         { type:"function", motif:[[50,62]], dur:[0.10], amp:0.08 },
-  not:        { type:"negation", motif:[[36,48],[39,51]], dur:[0.10,0.12], amp:0.10 },
-  the:        { type:"function", motif:[[47,59]], dur:[0.08], amp:0.07 },
-  a:          { type:"function", motif:[[48,60]], dur:[0.08], amp:0.07 },
-  and:        { type:"function", motif:[[52,64],[55,67]], dur:[0.06,0.08], amp:0.07 },
+  do:         { type:"function", motif:[[50,62]], amp:0.08 },
+  not:        { type:"negation", motif:[[36,48],[39,51]], amp:0.10 },
+  the:        { type:"function", motif:[[47,59]], amp:0.07 },
+  a:          { type:"function", motif:[[48,60]], amp:0.07 },
+  and:        { type:"function", motif:[[52,64],[55,67]], amp:0.07 },
 
-  see:        { type:"verb",     motif:[[62,69],[65,72],[57,64,69]], dur:[0.08,0.10,0.16], amp:0.13 },
-  build:      { type:"verb",     motif:[[50,62],[55,67],[57,69,81]], dur:[0.08,0.08,0.18], amp:0.14 },
-  love:       { type:"verb",     motif:[[60,67,72],[64,67,76],[55,67,79]], dur:[0.10,0.10,0.18], amp:0.14 },
-  find:       { type:"verb",     motif:[[59,71],[64,76],[52,64,71]], dur:[0.08,0.10,0.16], amp:0.13 },
-  follow:     { type:"verb",     motif:[[55,67],[59,71],[62,74,86]], dur:[0.08,0.10,0.18], amp:0.14 },
-  hear:       { type:"verb",     motif:[[57,69],[60,72],[64,76,88]], dur:[0.08,0.10,0.16], amp:0.13 },
+  see:        { type:"verb",     motif:[[62,69],[65,72],[57,64,69]], amp:0.13 },
+  build:      { type:"verb",     motif:[[50,62],[55,67],[57,69,81]], amp:0.14 },
+  love:       { type:"verb",     motif:[[60,67,72],[64,67,76],[55,67,79]], amp:0.14 },
+  find:       { type:"verb",     motif:[[59,71],[64,76],[52,64,71]], amp:0.13 },
+  follow:     { type:"verb",     motif:[[55,67],[59,71],[62,74,86]], amp:0.14 },
+  hear:       { type:"verb",     motif:[[57,69],[60,72],[64,76,88]], amp:0.13 },
 
-  danger:     { type:"noun",     motif:[[48,60,67],[49,61,73],[36,48,60]], dur:[0.10,0.12,0.20], amp:0.15 },
-  dangerous:  { type:"adjective",motif:[[60,72],[61,73],[55,67,79]], dur:[0.08,0.10,0.14], amp:0.12 },
-  water:      { type:"noun",     motif:[[53,65,77],[57,69],[52,64,76]], dur:[0.08,0.12,0.16], amp:0.13 },
-  home:       { type:"noun",     motif:[[48,60,72],[55,67],[60,72,79]], dur:[0.10,0.12,0.20], amp:0.14 },
-  signal:     { type:"noun",     motif:[[67,79],[71,83],[62,74,86]], dur:[0.06,0.08,0.14], amp:0.13 },
-  world:      { type:"noun",     motif:[[43,55,67],[50,62],[55,67,79]], dur:[0.10,0.12,0.20], amp:0.14 },
-  stars:      { type:"noun",     motif:[[72,84],[79,91],[76,88]], dur:[0.06,0.10,0.12], amp:0.13 },
-  star:       { type:"noun",     motif:[[72,84],[79,91],[76,88]], dur:[0.06,0.10,0.12], amp:0.13 },
-  light:      { type:"noun",     motif:[[72,84],[76,88],[79,91]], dur:[0.06,0.08,0.14], amp:0.13 },
+  danger:     { type:"noun",     motif:[[48,60,67],[49,61,73],[36,48,60]], amp:0.15 },
+  dangerous:  { type:"adjective",motif:[[60,72],[61,73],[55,67,79]], amp:0.12 },
+  water:      { type:"noun",     motif:[[53,65,77],[57,69],[52,64,76]], amp:0.13 },
+  home:       { type:"noun",     motif:[[48,60,72],[55,67],[60,72,79]], amp:0.14 },
+  signal:     { type:"noun",     motif:[[67,79],[71,83],[62,74,86]], amp:0.13 },
+  world:      { type:"noun",     motif:[[43,55,67],[50,62],[55,67,79]], amp:0.14 },
+  stars:      { type:"noun",     motif:[[72,84],[79,91],[76,88]], amp:0.13 },
+  star:       { type:"noun",     motif:[[72,84],[79,91],[76,88]], amp:0.13 },
+  light:      { type:"noun",     motif:[[72,84],[76,88],[79,91]], amp:0.13 },
 
-  strange:    { type:"adjective",motif:[[58,70],[61,73],[55,67,79]], dur:[0.08,0.08,0.14], amp:0.11 },
-  silent:     { type:"adjective",motif:[[52,64],[55,67],[48,60,72]], dur:[0.10,0.10,0.16], amp:0.10 },
-  new:        { type:"adjective",motif:[[64,76],[69,81]], dur:[0.08,0.12], amp:0.10 },
-  dark:       { type:"adjective",motif:[[45,57,69],[48,60],[40,52,64]], dur:[0.10,0.12,0.16], amp:0.11 }
+  strange:    { type:"adjective",motif:[[58,70],[61,73],[55,67,79]], amp:0.11 },
+  silent:     { type:"adjective",motif:[[52,64],[55,67],[48,60,72]], amp:0.10 },
+  new:        { type:"adjective",motif:[[64,76],[69,81]], amp:0.10 },
+  dark:       { type:"adjective",motif:[[45,57,69],[48,60],[40,52,64]], amp:0.11 }
 };
 
 // --------------------------------------------------
@@ -232,7 +232,7 @@ const BIG_WORD_BANK = [
 ];
 
 // --------------------------------------------------
-// VOICE HANDLING
+// VOICES
 // --------------------------------------------------
 function getVoicePreferenceOrder() {
   return [
@@ -296,7 +296,7 @@ function getSelectedVoice() {
 }
 
 // --------------------------------------------------
-// AUDIO + ENTRY GENERATION
+// AUDIO UTILS
 // --------------------------------------------------
 function setStatus(msg) {
   document.getElementById("status").innerText = "Status: " + msg;
@@ -333,10 +333,6 @@ async function ensureAudio() {
   setStatus("audio ready");
 }
 
-function clearSpeechQueue() {
-  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-}
-
 function stopAll() {
   stopRequested = true;
   activeNodes.forEach(node => {
@@ -344,31 +340,53 @@ function stopAll() {
     try { node.disconnect(); } catch(e) {}
   });
   activeNodes = [];
-  clearSpeechQueue();
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   setStatus("stopped");
 }
 
-function playChord(freqs, start, dur, gainAmt = 0.12, wave = "square") {
+function startSustainedChord(freqs, gainAmt = 0.12, wave = "square") {
+  const nodes = [];
+  const now = ctx.currentTime;
+
   freqs.forEach((freq, idx) => {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-    o.type = wave;
-    o.frequency.setValueAtTime(freq, start);
+    osc.type = wave;
+    osc.frequency.setValueAtTime(freq, now);
 
-    g.gain.setValueAtTime(0.0001, start);
-    g.gain.exponentialRampToValueAtTime(gainAmt, start + 0.010);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gainAmt * 0.65), start + dur * 0.45);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(gainAmt, now + 0.015 + idx * 0.002);
 
-    o.connect(g).connect(master);
-    o.start(start + idx * 0.0015);
-    o.stop(start + dur + 0.03);
+    osc.connect(gain).connect(master);
+    osc.start(now + idx * 0.002);
 
-    activeNodes.push(o, g);
+    nodes.push({ osc, gain });
+    activeNodes.push(osc, gain);
+  });
+
+  return nodes;
+}
+
+function stopSustainedChord(nodes) {
+  const now = ctx.currentTime;
+  nodes.forEach(({ osc, gain }) => {
+    try {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value || 0.08), now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+      osc.stop(now + 0.05);
+    } catch(e) {}
   });
 }
 
+function waitSec(sec) {
+  return new Promise(resolve => setTimeout(resolve, Math.max(0, sec * 1000)));
+}
+
+// --------------------------------------------------
+// WORD GENERATION
+// --------------------------------------------------
 function classify(word) {
   if (/^[?!,.;]$/.test(word)) return "punct";
   if (FUNCTION_WORDS.has(word)) return "function";
@@ -399,7 +417,7 @@ function makeKnownEntry(word) {
   const cluster    = [root, root + 1, root + 7, root + 12];
 
   if (type === "function") {
-    return { type, motif: [[root, root + 12], [root + 7, root + 19]], dur: [0.05, 0.07], amp: 0.07 };
+    return { type, motif: [[root, root + 12], [root + 7, root + 19]], amp: 0.07 };
   }
   if (type === "verb") {
     return {
@@ -410,7 +428,6 @@ function makeKnownEntry(word) {
         (h % 5 ? [root + 5, root + 17, root + 24] : dark),
         (h % 7 ? major : minor)
       ],
-      dur: [0.05, 0.07, 0.09, 0.13],
       amp: 0.13
     };
   }
@@ -422,7 +439,6 @@ function makeKnownEntry(word) {
         (h % 2 ? octaveMaj : octaveMin),
         (h % 3 ? [root + 5, root + 17] : bright)
       ],
-      dur: [0.05, 0.08, 0.10],
       amp: 0.10
     };
   }
@@ -435,7 +451,6 @@ function makeKnownEntry(word) {
         [root + 12, root + 16, root + 24],
         [root + 5, root + 17, root + 22]
       ],
-      dur: [0.04, 0.05, 0.07, 0.09],
       amp: 0.09
     };
   }
@@ -447,7 +462,6 @@ function makeKnownEntry(word) {
       (h % 5 ? dark : cluster),
       (h % 7 ? major : minor)
     ],
-    dur: [0.06, 0.08, 0.10, 0.14],
     amp: 0.12
   };
 }
@@ -455,7 +469,7 @@ function makeKnownEntry(word) {
 function makeUnknownEntry(word) {
   const h = hashWord(word);
   const root = 36 + (h % 30);
-  const syllables = Math.max(2, Math.min(5, Math.ceil(word.length / 3)));
+  const parts = Math.max(2, Math.min(5, Math.ceil(word.length / 3)));
 
   const choices = [
     [root, root + 12, root + 19],
@@ -469,17 +483,14 @@ function makeUnknownEntry(word) {
   ];
 
   const motif = [];
-  const dur = [];
-
-  for (let i = 0; i < syllables + 1; i++) {
+  for (let i = 0; i < parts + 1; i++) {
     const pick = choices[(h + i * 3) % choices.length].map(n =>
       clamp(n + ((i % 2) ? 2 : 0), 30, 96)
     );
     motif.push(pick);
-    dur.push(i === syllables ? 0.14 : 0.05 + ((h + i) % 3) * 0.02);
   }
 
-  return { type: "unknown", motif, dur, amp: 0.14 };
+  return { type: "unknown", motif, amp: 0.14 };
 }
 
 const lexicon = {};
@@ -500,20 +511,6 @@ function shapeEntry(word, entry, position, totalWords, isQuestion, isExclaim) {
   const type = entry.type;
   const progress = totalWords <= 1 ? 0 : position / (totalWords - 1);
 
-  if (type === "function") {
-    entry.dur = entry.dur.map(d => d * 0.78);
-    entry.amp *= 0.88;
-  } else if (type === "verb") {
-    entry.dur = entry.dur.map(d => d * 1.10);
-    entry.amp *= 1.06;
-  } else if (type === "noun") {
-    entry.dur = entry.dur.map(d => d * 1.03);
-    entry.amp *= 1.02;
-  } else if (type === "unknown") {
-    entry.dur = entry.dur.map(d => d * 1.04);
-    entry.amp *= 1.05;
-  }
-
   let transpose = 0;
   if (isQuestion) transpose = Math.round(progress * 5);
   else transpose = Math.round((0.35 - progress) * 2);
@@ -521,16 +518,11 @@ function shapeEntry(word, entry, position, totalWords, isQuestion, isExclaim) {
 
   entry.motif = entry.motif.map(chord => chord.map(n => clamp(n + transpose, 30, 96)));
 
-  if (position === totalWords - 1) {
-    if (isQuestion) {
-      entry.dur = entry.dur.map(d => d * 1.35);
-      entry.motif = entry.motif.map((chord, idx) =>
-        chord.map(n => clamp(n + 3 + idx, 30, 96))
-      );
-      entry.amp *= 1.10;
-    } else {
-      entry.dur = entry.dur.map(d => d * 1.12);
-    }
+  if (position === totalWords - 1 && isQuestion) {
+    entry.motif = entry.motif.map((chord, idx) =>
+      chord.map(n => clamp(n + 3 + idx, 30, 96))
+    );
+    entry.amp *= 1.10;
   }
 
   return entry;
@@ -541,39 +533,42 @@ function tokenize(text) {
 }
 
 // --------------------------------------------------
-// WORD-BY-WORD SYNCHRONIZED SPEECH
+// SPEECH: WAIT FOR WORD TO END
 // --------------------------------------------------
-function estimateVoiceDurationSec(word, speedMul, isQuestionLastWord = false) {
-  // rough but useful heuristic so musical and spoken event stay grouped
-  const letters = word.replace(/[^a-z']/gi, "").length;
-  let base = 0.18 + letters * 0.045;
-  if (letters <= 2) base = 0.16;
-  if (letters >= 8) base += 0.06;
-  if (isQuestionLastWord) base += 0.10;
+function speakWordAndWait(word, speedMul, isQuestionLastWord = false) {
+  return new Promise(resolve => {
+    if (!("speechSynthesis" in window)) {
+      resolve();
+      return;
+    }
+
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.rate = 1.0 * speedMul;
+    utter.pitch = Number(document.getElementById("voicePitch").value) / 100;
+    utter.volume = 0.9;
+
+    const selectedVoice = getSelectedVoice();
+    if (selectedVoice) utter.voice = selectedVoice;
+
+    if (isQuestionLastWord) {
+      utter.pitch = Math.min(2, utter.pitch + 0.22);
+      utter.rate = Math.max(0.8, utter.rate * 0.96);
+    }
+
+    utter.onend = () => resolve();
+    utter.onerror = () => resolve();
+
+    window.speechSynthesis.speak(utter);
+  });
+}
+
+function estimateNotesOnlyDuration(entry, speedMul, isQuestionLastWord = false) {
+  let base = 0.16 + entry.motif.length * 0.09;
+  if (entry.type === "function") base *= 0.7;
+  if (entry.type === "verb") base *= 1.1;
+  if (entry.type === "unknown") base *= 1.15;
+  if (isQuestionLastWord) base *= 1.15;
   return base / speedMul;
-}
-
-function speakWordNow(word, speedMul, isQuestionLastWord = false) {
-  if (!("speechSynthesis" in window)) return;
-
-  const utter = new SpeechSynthesisUtterance(word);
-  utter.rate = 1.0 * speedMul;
-  utter.pitch = Number(document.getElementById("voicePitch").value) / 100;
-  utter.volume = 0.9;
-
-  const selectedVoice = getSelectedVoice();
-  if (selectedVoice) utter.voice = selectedVoice;
-
-  if (isQuestionLastWord) {
-    utter.pitch = Math.min(2, utter.pitch + 0.22);
-    utter.rate = Math.max(0.8, utter.rate * 0.96);
-  }
-
-  window.speechSynthesis.speak(utter);
-}
-
-function waitSec(sec) {
-  return new Promise(resolve => setTimeout(resolve, Math.max(0, sec * 1000)));
 }
 
 // --------------------------------------------------
@@ -597,7 +592,6 @@ async function play() {
   const isQuestion = tokens.includes("?") || ["why","what","how","where","who","when"].includes(firstWord);
   const isExclaim = tokens.includes("!");
 
-  let timeline = ctx.currentTime + 0.03;
   const analysis = [];
 
   for (let i = 0, wordIndex = 0; i < tokens.length; i++) {
@@ -607,15 +601,12 @@ async function play() {
 
     if (token === "," || token === ";") {
       const pause = (token === "," ? 0.10 : 0.16) / speedMul;
-      timeline += pause;
       await waitSec(pause);
       continue;
     }
 
     if (token === ".") {
-      const pause = 0.18 / speedMul;
-      timeline += pause;
-      await waitSec(pause);
+      await waitSec(0.18 / speedMul);
       continue;
     }
 
@@ -627,73 +618,72 @@ async function play() {
 
     const isLastWord = wordIndex === wordsOnly.length - 1;
 
-    // Build word-level musical duration
-    let musicDuration = 0;
-    const eventStarts = [];
-    let localCursor = timeline;
+    const freqs = entry.motif.flat().map(midiToFreq);
+    const uniqueFreqs = [...new Set(freqs.map(f => f.toFixed(3)))].map(Number);
 
-    // faster/slower globally
-    let overlapFactor = 0.68;
-    if (entry.type === "function") overlapFactor = 0.88;
-    if (entry.type === "verb") overlapFactor = 0.60;
-    if (entry.type === "noun") overlapFactor = 0.64;
-    if (entry.type === "adjective") overlapFactor = 0.67;
-    if (entry.type === "unknown") overlapFactor = 0.62;
-
-    for (let j = 0; j < entry.motif.length; j++) {
-      const chord = entry.motif[j];
-      const dur = entry.dur[j] / speedMul;
-      const freqs = chord.map(midiToFreq);
-      const micro = (Math.random() - 0.5) * 0.008;
-
-      eventStarts.push(localCursor);
-
-      if (playMode !== "voice") {
-        playChord(freqs, localCursor + micro, dur, Math.min(0.18, entry.amp), waveform);
-      }
-
-      localCursor += dur * overlapFactor;
-      musicDuration = Math.max(musicDuration, (localCursor - timeline) + dur * 0.35);
+    let sustainedNodes = [];
+    if (playMode !== "voice") {
+      sustainedNodes = startSustainedChord(
+        uniqueFreqs,
+        Math.min(0.16, entry.amp || 0.12),
+        waveform
+      );
     }
 
-    // voice duration estimate
-    const voiceDuration = (playMode === "notes") ? 0 : estimateVoiceDurationSec(token, speedMul, isQuestion && isLastWord);
-
-    // Start voice and notes together for this word
-    if (playMode === "notes_voice" || playMode === "voice") {
-      speakWordNow(token, speedMul, isQuestion && isLastWord);
+    if (playMode === "notes_voice") {
+      await speakWordAndWait(token, speedMul, isQuestion && isLastWord);
+    } else if (playMode === "voice") {
+      await speakWordAndWait(token, speedMul, isQuestion && isLastWord);
+    } else {
+      await waitSec(estimateNotesOnlyDuration(entry, speedMul, isQuestion && isLastWord));
     }
 
-    // phrase gap after the combined event
-    let tailGap = 0.03 / speedMul;
+    if (playMode !== "voice") {
+      stopSustainedChord(sustainedNodes);
+      await waitSec(0.045 / speedMul);
+    }
+
+    let tailGap = 0.02 / speedMul;
     if (entry.type === "function") tailGap = 0.01 / speedMul;
-    if (entry.type === "noun") tailGap = 0.035 / speedMul;
-    if (entry.type === "verb") tailGap = 0.028 / speedMul;
-    if (entry.type === "unknown") tailGap = 0.03 / speedMul;
+    if (entry.type === "noun") tailGap = 0.03 / speedMul;
+    if (entry.type === "verb") tailGap = 0.025 / speedMul;
 
-    const combinedDuration = Math.max(musicDuration, voiceDuration) + tailGap;
+    await waitSec(tailGap);
 
     const source = lexicon[lower] ? "known" : "fallback";
     analysis.push(
-      `${token} | ${entry.type} | ${source} | event ${combinedDuration.toFixed(2)}s | ` +
+      `${token} | ${entry.type} | ${source} | sustained with voice lock | ` +
       entry.motif.map(ch => "[" + ch.join(",") + "]").join(" ")
     );
 
-    timeline += combinedDuration;
-    await waitSec(combinedDuration);
     wordIndex++;
   }
 
   if (!stopRequested && playMode !== "voice") {
     if (isQuestion) {
-      playChord([midiToFreq(71), midiToFreq(83), midiToFreq(88)], ctx.currentTime, 0.26 / speedMul, 0.11, waveform);
-      await waitSec(0.22 / speedMul);
+      const endNodes = startSustainedChord(
+        [midiToFreq(71), midiToFreq(83), midiToFreq(88)],
+        0.11,
+        waveform
+      );
+      await waitSec(0.28 / speedMul);
+      stopSustainedChord(endNodes);
     } else if (isExclaim) {
-      playChord([midiToFreq(72), midiToFreq(84), midiToFreq(88)], ctx.currentTime, 0.22 / speedMul, 0.12, waveform);
-      await waitSec(0.18 / speedMul);
+      const endNodes = startSustainedChord(
+        [midiToFreq(72), midiToFreq(84), midiToFreq(88)],
+        0.12,
+        waveform
+      );
+      await waitSec(0.24 / speedMul);
+      stopSustainedChord(endNodes);
     } else {
-      playChord([midiToFreq(60), midiToFreq(72), midiToFreq(79)], ctx.currentTime, 0.20 / speedMul, 0.09, waveform);
-      await waitSec(0.16 / speedMul);
+      const endNodes = startSustainedChord(
+        [midiToFreq(60), midiToFreq(72), midiToFreq(79)],
+        0.10,
+        waveform
+      );
+      await waitSec(0.22 / speedMul);
+      stopSustainedChord(endNodes);
     }
   }
 
@@ -730,7 +720,9 @@ document.getElementById("startBtn").addEventListener("click", async () => {
 
 document.getElementById("beepBtn").addEventListener("click", async () => {
   await ensureAudio();
-  playChord([440, 660, 880], ctx.currentTime, 0.25, 0.12, "square");
+  const testNodes = startSustainedChord([440,660,880], 0.12, "square");
+  await waitSec(0.25);
+  stopSustainedChord(testNodes);
   setStatus("beep played");
 });
 
