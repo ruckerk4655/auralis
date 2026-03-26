@@ -8,48 +8,88 @@
   body {
     font-family: Arial, sans-serif;
     padding: 20px;
-    max-width: 980px;
+    max-width: 1100px;
     margin: 0 auto;
     line-height: 1.4;
+    background: #fafafa;
   }
+
+  h2 {
+    margin-bottom: 8px;
+  }
+
+  p {
+    margin-top: 0;
+    color: #444;
+  }
+
   textarea {
     width: 100%;
-    min-height: 220px;
+    min-height: 240px;
     font-size: 18px;
-    padding: 12px;
+    padding: 14px;
     box-sizing: border-box;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    resize: vertical;
+    background: white;
   }
+
   .row {
     display: flex;
-    gap: 12px;
+    gap: 14px;
     flex-wrap: wrap;
     align-items: center;
-    margin: 10px 0;
+    margin: 12px 0;
   }
+
   button, select, input {
     font-size: 16px;
     padding: 10px 12px;
   }
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   #status {
     margin-top: 10px;
     font-weight: bold;
+    padding: 10px 12px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
   }
+
   #analysis {
     white-space: pre-wrap;
-    background: #f5f5f5;
-    padding: 12px;
+    background: white;
+    padding: 14px;
     margin-top: 14px;
     font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    max-height: 380px;
+    overflow: auto;
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 12px;
   }
 </style>
 </head>
 <body>
 
 <h2>Auralis</h2>
-<p>Type English and hear a layered non-human musical language.</p>
+<p>Type English and hear a layered non-human musical language, optionally with a robotic English voice.</p>
 
-<textarea id="text">we do not see the dangerous water beyond the silent world and we follow the strange signal</textarea>
+<textarea id="text">why do you follow the strange signal from Commander Raleth beyond the silver ocean?</textarea>
 
 <div class="row">
   <button id="startBtn">Start Audio</button>
@@ -68,10 +108,30 @@
     </select>
   </label>
 
+  <label>Playback Mode
+    <select id="playMode">
+      <option value="notes">notes only</option>
+      <option value="notes_voice">notes + robotic voice</option>
+      <option value="voice">robotic voice only</option>
+    </select>
+  </label>
+
   <label>Tempo
     <input id="tempo" type="range" min="70" max="260" value="165">
   </label>
   <span id="tempoValue">165 BPM</span>
+</div>
+
+<div class="row">
+  <label>Voice Rate
+    <input id="voiceRate" type="range" min="60" max="170" value="108">
+  </label>
+  <span id="voiceRateValue">1.08x</span>
+
+  <label>Voice Pitch
+    <input id="voicePitch" type="range" min="50" max="180" value="82">
+  </label>
+  <span id="voicePitchValue">0.82</span>
 </div>
 
 <div id="status">Status: not started</div>
@@ -90,7 +150,7 @@ const FUNCTION_WORDS = new Set([
   "if","then","so","as","by","we","i","you","he","she","it","they","do","does",
   "did","is","are","was","were","will","shall","not","no","our","your","their",
   "my","his","her","its","this","that","these","those","be","been","being",
-  "am","can","could","should","would","may","might","must"
+  "am","can","could","should","would","may","might","must","me","us","them"
 ]);
 
 const VERBS = new Set([
@@ -98,23 +158,27 @@ const VERBS = new Set([
   "move","leave","search","travel","listen","understand","remember","trust",
   "learn","speak","sing","call","watch","touch","hold","bring","carry","shape",
   "open","close","begin","end","rise","fall","change","create","destroy",
-  "discover","explore","decode","observe","protect","guide","signal","return"
+  "discover","explore","decode","observe","protect","guide","signal","return",
+  "ask","answer","believe","imagine","become","cross","enter","escape","gather",
+  "measure","translate","whisper","glow"
 ]);
 
 const ADJECTIVES = new Set([
   "dangerous","bright","dark","new","silent","strange","beautiful","cold","warm",
   "distant","ancient","deep","unknown","powerful","fragile","hidden","golden",
   "vast","small","great","gentle","wild","broken","clear","shifting","electric",
-  "harmonic","alien","human","living","empty","glowing","secret","endless"
+  "harmonic","alien","human","living","empty","glowing","secret","endless",
+  "silver","burning","quiet","soft","sharp","hollow","sacred"
 ]);
 
 const NOUNS = new Set([
   "danger","water","home","signal","world","music","stars","star","machine",
   "system","light","space","truth","pattern","planet","sky","fire","memory",
   "ocean","river","forest","storm","wind","stone","metal","voice","language",
-  "planet","sun","moon","ship","bridge","door","path","dream","mind","heart",
+  "sun","moon","ship","bridge","door","path","dream","mind","heart",
   "energy","echo","shadow","time","future","past","code","message","name",
-  "friend","enemy","city","mountain","field","song","wave","flame","night","day"
+  "friend","enemy","city","mountain","field","song","wave","flame","night","day",
+  "captain","commander","doctor","ocean","harbor","crystal","signal","message"
 ]);
 
 // --------------------------------------------------
@@ -156,7 +220,7 @@ const seedLexicon = {
 };
 
 // --------------------------------------------------
-// BIG VOCAB LISTS
+// BIG VOCAB
 // --------------------------------------------------
 const BIG_WORD_BANK = [
   "above","across","after","again","against","air","alive","alone","always","amber",
@@ -175,7 +239,8 @@ const BIG_WORD_BANK = [
   "secret","shape","ship","shore","silver","sky","sleep","snow","south","spark",
   "spirit","spring","stone","story","stream","structure","summer","surface","symbol","task",
   "temple","thread","tone","tower","trace","trail","tree","valley","vision","voice",
-  "wall","way","west","white","window","winter","word","yellow","young","zero"
+  "wall","way","west","white","window","winter","word","yellow","young","zero",
+  "doctor","raleth","solari","vaelith","orion","alexandria","mercer","evelyn","commander"
 ];
 
 // --------------------------------------------------
@@ -224,6 +289,7 @@ function stopAll() {
     try { node.disconnect(); } catch(e) {}
   });
   activeNodes = [];
+  window.speechSynthesis.cancel();
   setStatus("stopped");
 }
 
@@ -248,6 +314,32 @@ function playChord(freqs, start, dur, gainAmt = 0.12, wave = "triangle") {
   });
 }
 
+function speakPhrase(text, isQuestion) {
+  if (!("speechSynthesis" in window)) return;
+
+  window.speechSynthesis.cancel();
+
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = Number(document.getElementById("voiceRate").value) / 100;
+  utter.pitch = Number(document.getElementById("voicePitch").value) / 100;
+  utter.volume = 0.9;
+
+  const voices = window.speechSynthesis.getVoices();
+  const preferred =
+    voices.find(v => /Google US English|Microsoft David|Microsoft Mark|Samantha|Alex/i.test(v.name)) ||
+    voices.find(v => /^en/i.test(v.lang)) ||
+    voices[0];
+
+  if (preferred) utter.voice = preferred;
+
+  if (isQuestion) {
+    utter.pitch = Math.min(2, utter.pitch + 0.18);
+    utter.rate = Math.max(0.8, utter.rate - 0.04);
+  }
+
+  window.speechSynthesis.speak(utter);
+}
+
 function classify(word) {
   if (/^[?!,.;]$/.test(word)) return "punct";
   if (FUNCTION_WORDS.has(word)) return "function";
@@ -262,7 +354,7 @@ function classify(word) {
 }
 
 // --------------------------------------------------
-// KNOWN-WORD GENERATION
+// KNOWN WORD GENERATION
 // --------------------------------------------------
 function makeKnownEntry(word) {
   const h = hashWord(word);
@@ -344,7 +436,7 @@ function makeKnownEntry(word) {
 }
 
 // --------------------------------------------------
-// UNKNOWN-WORD / PROPER-NAME GENERATION
+// UNKNOWN WORD / NAME GENERATION
 // --------------------------------------------------
 function makeUnknownEntry(word) {
   const h = hashWord(word);
@@ -366,7 +458,9 @@ function makeUnknownEntry(word) {
   const dur = [];
 
   for (let i = 0; i < syllables + 1; i++) {
-    const pick = choices[(h + i * 3) % choices.length].map(n => clamp(n + ((i % 2) ? 2 : 0), 30, 96));
+    const pick = choices[(h + i * 3) % choices.length].map(n =>
+      clamp(n + ((i % 2) ? 2 : 0), 30, 96)
+    );
     motif.push(pick);
     dur.push(i === syllables ? 0.14 : 0.05 + ((h + i) % 3) * 0.02);
   }
@@ -380,7 +474,7 @@ function makeUnknownEntry(word) {
 }
 
 // --------------------------------------------------
-// BUILD HUGE VOCAB
+// BUILD LEXICON
 // --------------------------------------------------
 const lexicon = {};
 
@@ -394,13 +488,8 @@ BIG_WORD_BANK.forEach(word => {
   }
 });
 
-// Add lots more auto-generated variants to massively expand built-in vocab
 for (const base of BIG_WORD_BANK) {
-  const variants = [
-    base + "s",
-    base + "ed",
-    base + "ing"
-  ];
+  const variants = [base + "s", base + "ed", base + "ing"];
   for (const v of variants) {
     if (!lexicon[v]) {
       lexicon[v] = makeKnownEntry(v);
@@ -408,9 +497,6 @@ for (const base of BIG_WORD_BANK) {
   }
 }
 
-// --------------------------------------------------
-// WORD RESOLUTION
-// --------------------------------------------------
 function getEntry(word) {
   if (lexicon[word]) return cloneEntry(lexicon[word]);
   return makeUnknownEntry(word);
@@ -446,8 +532,17 @@ function shapeEntry(word, entry, position, totalWords, isQuestion, isExclaim) {
     chord.map(n => clamp(n + transpose, 30, 96))
   );
 
+  // Last word handling, especially questions
   if (position === totalWords - 1) {
-    entry.dur = entry.dur.map(d => d * (isQuestion ? 1.22 : 1.12));
+    if (isQuestion) {
+      entry.dur = entry.dur.map(d => d * 1.35);
+      entry.motif = entry.motif.map((chord, idx) =>
+        chord.map(n => clamp(n + 3 + idx, 30, 96))
+      );
+      entry.amp *= 1.10;
+    } else {
+      entry.dur = entry.dur.map(d => d * 1.12);
+    }
   }
 
   return entry;
@@ -467,6 +562,7 @@ async function play() {
   const rawText = document.getElementById("text").value.trim();
   const waveform = document.getElementById("waveform").value;
   const bpm = Number(document.getElementById("tempo").value);
+  const playMode = document.getElementById("playMode").value;
 
   const tokens = tokenize(rawText);
   const wordsOnly = tokens.filter(t => !/^[?!,.;]$/.test(t));
@@ -506,7 +602,10 @@ async function play() {
       const freqs = chord.map(midiToFreq);
       const micro = (Math.random() - 0.5) * 0.010;
 
-      playChord(freqs, t + micro, dur, Math.min(0.18, entry.amp), waveform);
+      if (playMode !== "voice") {
+        playChord(freqs, t + micro, dur, Math.min(0.18, entry.amp), waveform);
+      }
+
       t += dur * overlapFactor;
     }
 
@@ -537,18 +636,33 @@ async function play() {
     wordIndex++;
   }
 
-  if (isQuestion) {
-    playChord([midiToFreq(67), midiToFreq(79), midiToFreq(83)], t, 0.18 * (110 / bpm), 0.10, waveform);
-  } else if (isExclaim) {
-    playChord([midiToFreq(72), midiToFreq(84), midiToFreq(88)], t, 0.20 * (110 / bpm), 0.12, waveform);
-  } else {
-    playChord([midiToFreq(60), midiToFreq(72), midiToFreq(79)], t, 0.18 * (110 / bpm), 0.09, waveform);
+  if (playMode !== "voice") {
+    if (isQuestion) {
+      playChord(
+        [midiToFreq(71), midiToFreq(83), midiToFreq(88)],
+        t,
+        0.24 * (110 / bpm),
+        0.11,
+        waveform
+      );
+    } else if (isExclaim) {
+      playChord([midiToFreq(72), midiToFreq(84), midiToFreq(88)], t, 0.20 * (110 / bpm), 0.12, waveform);
+    } else {
+      playChord([midiToFreq(60), midiToFreq(72), midiToFreq(79)], t, 0.18 * (110 / bpm), 0.09, waveform);
+    }
+  }
+
+  if (playMode === "notes_voice" || playMode === "voice") {
+    speakPhrase(rawText, isQuestion);
   }
 
   document.getElementById("analysis").innerText =
     `Built-in vocabulary size: ${Object.keys(lexicon).length}\n\n` + analysis.join("\n");
 
-  setStatus("playing");
+  setStatus(
+    "playing " +
+    (playMode === "notes" ? "notes" : playMode === "voice" ? "voice" : "notes + voice")
+  );
 }
 
 // --------------------------------------------------
@@ -558,7 +672,20 @@ document.getElementById("tempo").addEventListener("input", e => {
   document.getElementById("tempoValue").innerText = `${e.target.value} BPM`;
 });
 
-document.getElementById("startBtn").addEventListener("click", ensureAudio);
+document.getElementById("voiceRate").addEventListener("input", e => {
+  document.getElementById("voiceRateValue").innerText = (e.target.value / 100).toFixed(2) + "x";
+});
+
+document.getElementById("voicePitch").addEventListener("input", e => {
+  document.getElementById("voicePitchValue").innerText = (e.target.value / 100).toFixed(2);
+});
+
+document.getElementById("startBtn").addEventListener("click", async () => {
+  await ensureAudio();
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.getVoices();
+  }
+});
 
 document.getElementById("beepBtn").addEventListener("click", async () => {
   await ensureAudio();
