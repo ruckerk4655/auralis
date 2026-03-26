@@ -66,7 +66,7 @@
     font-size: 14px;
     border: 1px solid #ddd;
     border-radius: 10px;
-    max-height: 380px;
+    max-height: 420px;
     overflow: auto;
   }
 </style>
@@ -74,7 +74,7 @@
 <body>
 
 <h2>Auralis</h2>
-<p>Type English and hear a layered non-human musical language, optionally with a robotic English voice synced word-by-word to the notes.</p>
+<p>Type English and hear each word as a combined event: notes and robotic English start together, then the next word begins after the current one finishes.</p>
 
 <textarea id="text">why do you follow the strange signal from Commander Raleth beyond the silver ocean?</textarea>
 
@@ -103,10 +103,10 @@
     </select>
   </label>
 
-  <label>Tempo
-    <input id="tempo" type="range" min="60" max="220" value="90">
+  <label>Speed
+    <input id="speed" type="range" min="60" max="180" value="100">
   </label>
-  <span id="tempoValue">90 BPM</span>
+  <span id="speedValue">1.00x</span>
 </div>
 
 <div class="row">
@@ -114,13 +114,8 @@
     <select id="voiceSelect"></select>
   </label>
 
-  <label>Voice Rate
-    <input id="voiceRate" type="range" min="60" max="170" value="100">
-  </label>
-  <span id="voiceRateValue">1.00x</span>
-
-  <label>Voice Pitch
-    <input id="voicePitch" type="range" min="50" max="180" value="78">
+  <label>Voice Tone
+    <input id="voicePitch" type="range" min="50" max="160" value="78">
   </label>
   <span id="voicePitchValue">0.78</span>
 </div>
@@ -132,7 +127,7 @@
 let ctx = null;
 let master = null;
 let activeNodes = [];
-let scheduledSpeechTimers = [];
+let stopRequested = false;
 let voicesCache = [];
 
 // --------------------------------------------------
@@ -237,7 +232,71 @@ const BIG_WORD_BANK = [
 ];
 
 // --------------------------------------------------
-// UTILS
+// VOICE HANDLING
+// --------------------------------------------------
+function getVoicePreferenceOrder() {
+  return [
+    /Google UK English Male/i,
+    /Microsoft David/i,
+    /Microsoft Mark/i,
+    /Daniel/i,
+    /Alex/i,
+    /Fred/i,
+    /Google US English/i,
+    /Samantha/i
+  ];
+}
+
+function populateVoiceOptions() {
+  const select = document.getElementById("voiceSelect");
+
+  if (!("speechSynthesis" in window)) {
+    select.innerHTML = '<option value="">speech not supported</option>';
+    return;
+  }
+
+  const voices = window.speechSynthesis.getVoices();
+  voicesCache = voices;
+  const english = voices.filter(v => /^en/i.test(v.lang));
+  select.innerHTML = "";
+
+  if (english.length === 0) {
+    select.innerHTML = '<option value="">default browser voice</option>';
+    return;
+  }
+
+  const priority = getVoicePreferenceOrder();
+
+  english.sort((a, b) => {
+    const ai = priority.findIndex(r => r.test(a.name));
+    const bi = priority.findIndex(r => r.test(b.name));
+    const av = ai === -1 ? 999 : ai;
+    const bv = bi === -1 ? 999 : bi;
+    return av - bv || a.name.localeCompare(b.name);
+  });
+
+  english.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = String(voices.indexOf(v));
+    opt.textContent = `${v.name} (${v.lang})`;
+    select.appendChild(opt);
+  });
+
+  const preferred = english.find(v =>
+    /Google UK English Male|Microsoft David|Microsoft Mark|Daniel|Alex|Fred/i.test(v.name)
+  ) || english[0];
+
+  select.value = String(voices.indexOf(preferred));
+}
+
+function getSelectedVoice() {
+  const idx = Number(document.getElementById("voiceSelect").value);
+  if (!Number.isNaN(idx) && voicesCache[idx]) return voicesCache[idx];
+  return null;
+}
+
+// --------------------------------------------------
+// AUDIO + ENTRY GENERATION
 // --------------------------------------------------
 function setStatus(msg) {
   document.getElementById("status").innerText = "Status: " + msg;
@@ -263,11 +322,6 @@ function cloneEntry(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-function clearSpeechTimers() {
-  scheduledSpeechTimers.forEach(id => clearTimeout(id));
-  scheduledSpeechTimers = [];
-}
-
 async function ensureAudio() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -275,20 +329,22 @@ async function ensureAudio() {
     master.gain.value = 0.95;
     master.connect(ctx.destination);
   }
-  if (ctx.state === "suspended") {
-    await ctx.resume();
-  }
+  if (ctx.state === "suspended") await ctx.resume();
   setStatus("audio ready");
 }
 
+function clearSpeechQueue() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+}
+
 function stopAll() {
+  stopRequested = true;
   activeNodes.forEach(node => {
     try { node.stop(); } catch(e) {}
     try { node.disconnect(); } catch(e) {}
   });
   activeNodes = [];
-  clearSpeechTimers();
-  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  clearSpeechQueue();
   setStatus("stopped");
 }
 
@@ -313,91 +369,6 @@ function playChord(freqs, start, dur, gainAmt = 0.12, wave = "square") {
   });
 }
 
-function getVoicePreferenceOrder() {
-  return [
-    /Google UK English Male/i,
-    /Microsoft David/i,
-    /Microsoft Mark/i,
-    /Daniel/i,
-    /Alex/i,
-    /Fred/i,
-    /Google US English/i,
-    /Samantha/i
-  ];
-}
-
-function populateVoiceOptions() {
-  if (!("speechSynthesis" in window)) {
-    document.getElementById("voiceSelect").innerHTML = '<option value="">speech not supported</option>';
-    return;
-  }
-
-  const voices = window.speechSynthesis.getVoices();
-  voicesCache = voices;
-
-  const englishVoices = voices.filter(v => /^en/i.test(v.lang));
-  const select = document.getElementById("voiceSelect");
-  select.innerHTML = "";
-
-  if (englishVoices.length === 0) {
-    select.innerHTML = '<option value="">default browser voice</option>';
-    return;
-  }
-
-  const priority = getVoicePreferenceOrder();
-
-  englishVoices.sort((a, b) => {
-    const ai = priority.findIndex(r => r.test(a.name));
-    const bi = priority.findIndex(r => r.test(b.name));
-    const av = ai === -1 ? 999 : ai;
-    const bv = bi === -1 ? 999 : bi;
-    return av - bv || a.name.localeCompare(b.name);
-  });
-
-  englishVoices.forEach((voice, idx) => {
-    const opt = document.createElement("option");
-    opt.value = String(voices.indexOf(voice));
-    opt.textContent = `${voice.name} (${voice.lang})`;
-    select.appendChild(opt);
-  });
-
-  const defaultMatch = englishVoices.find(v =>
-    /Google UK English Male|Microsoft David|Microsoft Mark|Daniel|Alex|Fred/i.test(v.name)
-  ) || englishVoices[0];
-
-  select.value = String(voices.indexOf(defaultMatch));
-}
-
-function getSelectedVoice() {
-  const select = document.getElementById("voiceSelect");
-  const idx = Number(select.value);
-  if (!Number.isNaN(idx) && voicesCache[idx]) return voicesCache[idx];
-  return null;
-}
-
-function speakWordAt(word, delayMs, isQuestionLastWord = false) {
-  if (!("speechSynthesis" in window)) return;
-
-  const timerId = setTimeout(() => {
-    const utter = new SpeechSynthesisUtterance(word);
-    utter.rate = Number(document.getElementById("voiceRate").value) / 100;
-    utter.pitch = Number(document.getElementById("voicePitch").value) / 100;
-    utter.volume = 0.9;
-
-    const selectedVoice = getSelectedVoice();
-    if (selectedVoice) utter.voice = selectedVoice;
-
-    if (isQuestionLastWord) {
-      utter.pitch = Math.min(2, utter.pitch + 0.22);
-      utter.rate = Math.max(0.75, utter.rate - 0.05);
-    }
-
-    window.speechSynthesis.speak(utter);
-  }, Math.max(0, delayMs));
-
-  scheduledSpeechTimers.push(timerId);
-}
-
 function classify(word) {
   if (/^[?!,.;]$/.test(word)) return "punct";
   if (FUNCTION_WORDS.has(word)) return "function";
@@ -411,9 +382,6 @@ function classify(word) {
   return "noun";
 }
 
-// --------------------------------------------------
-// KNOWN WORD GENERATION
-// --------------------------------------------------
 function makeKnownEntry(word) {
   const h = hashWord(word);
   const type = classify(word);
@@ -433,7 +401,6 @@ function makeKnownEntry(word) {
   if (type === "function") {
     return { type, motif: [[root, root + 12], [root + 7, root + 19]], dur: [0.05, 0.07], amp: 0.07 };
   }
-
   if (type === "verb") {
     return {
       type,
@@ -447,7 +414,6 @@ function makeKnownEntry(word) {
       amp: 0.13
     };
   }
-
   if (type === "adjective") {
     return {
       type,
@@ -460,7 +426,6 @@ function makeKnownEntry(word) {
       amp: 0.10
     };
   }
-
   if (type === "adverb") {
     return {
       type,
@@ -474,7 +439,6 @@ function makeKnownEntry(word) {
       amp: 0.09
     };
   }
-
   return {
     type: "noun",
     motif: [
@@ -488,9 +452,6 @@ function makeKnownEntry(word) {
   };
 }
 
-// --------------------------------------------------
-// UNKNOWN WORD / NAME GENERATION
-// --------------------------------------------------
 function makeUnknownEntry(word) {
   const h = hashWord(word);
   const root = 36 + (h % 30);
@@ -521,22 +482,11 @@ function makeUnknownEntry(word) {
   return { type: "unknown", motif, dur, amp: 0.14 };
 }
 
-// --------------------------------------------------
-// BUILD LEXICON
-// --------------------------------------------------
 const lexicon = {};
-
-Object.keys(seedLexicon).forEach(k => {
-  lexicon[k] = cloneEntry(seedLexicon[k]);
-});
-
-BIG_WORD_BANK.forEach(word => {
-  if (!lexicon[word]) lexicon[word] = makeKnownEntry(word);
-});
-
+Object.keys(seedLexicon).forEach(k => { lexicon[k] = cloneEntry(seedLexicon[k]); });
+BIG_WORD_BANK.forEach(word => { if (!lexicon[word]) lexicon[word] = makeKnownEntry(word); });
 for (const base of BIG_WORD_BANK) {
-  const variants = [base + "s", base + "ed", base + "ing"];
-  for (const v of variants) {
+  for (const v of [base + "s", base + "ed", base + "ing"]) {
     if (!lexicon[v]) lexicon[v] = makeKnownEntry(v);
   }
 }
@@ -591,16 +541,53 @@ function tokenize(text) {
 }
 
 // --------------------------------------------------
+// WORD-BY-WORD SYNCHRONIZED SPEECH
+// --------------------------------------------------
+function estimateVoiceDurationSec(word, speedMul, isQuestionLastWord = false) {
+  // rough but useful heuristic so musical and spoken event stay grouped
+  const letters = word.replace(/[^a-z']/gi, "").length;
+  let base = 0.18 + letters * 0.045;
+  if (letters <= 2) base = 0.16;
+  if (letters >= 8) base += 0.06;
+  if (isQuestionLastWord) base += 0.10;
+  return base / speedMul;
+}
+
+function speakWordNow(word, speedMul, isQuestionLastWord = false) {
+  if (!("speechSynthesis" in window)) return;
+
+  const utter = new SpeechSynthesisUtterance(word);
+  utter.rate = 1.0 * speedMul;
+  utter.pitch = Number(document.getElementById("voicePitch").value) / 100;
+  utter.volume = 0.9;
+
+  const selectedVoice = getSelectedVoice();
+  if (selectedVoice) utter.voice = selectedVoice;
+
+  if (isQuestionLastWord) {
+    utter.pitch = Math.min(2, utter.pitch + 0.22);
+    utter.rate = Math.max(0.8, utter.rate * 0.96);
+  }
+
+  window.speechSynthesis.speak(utter);
+}
+
+function waitSec(sec) {
+  return new Promise(resolve => setTimeout(resolve, Math.max(0, sec * 1000)));
+}
+
+// --------------------------------------------------
 // PLAYBACK
 // --------------------------------------------------
 async function play() {
   await ensureAudio();
   stopAll();
+  stopRequested = false;
 
   const rawText = document.getElementById("text").value.trim();
   const waveform = document.getElementById("waveform").value;
-  const bpm = Number(document.getElementById("tempo").value);
   const playMode = document.getElementById("playMode").value;
+  const speedMul = Number(document.getElementById("speed").value) / 100;
 
   const tokens = tokenize(rawText);
   const wordsOnly = tokens.filter(t => !/^[?!,.;]$/.test(t));
@@ -610,105 +597,123 @@ async function play() {
   const isQuestion = tokens.includes("?") || ["why","what","how","where","who","when"].includes(firstWord);
   const isExclaim = tokens.includes("!");
 
-  let t = ctx.currentTime + 0.03;
+  let timeline = ctx.currentTime + 0.03;
   const analysis = [];
-  const phraseStartMs = performance.now();
 
   for (let i = 0, wordIndex = 0; i < tokens.length; i++) {
+    if (stopRequested) return;
+
     const token = tokens[i];
 
-    if (token === ",") { t += 0.08; continue; }
-    if (token === ";") { t += 0.12; continue; }
-    if (token === ".") { t += 0.16; continue; }
-    if (token === "?" || token === "!") { continue; }
+    if (token === "," || token === ";") {
+      const pause = (token === "," ? 0.10 : 0.16) / speedMul;
+      timeline += pause;
+      await waitSec(pause);
+      continue;
+    }
+
+    if (token === ".") {
+      const pause = 0.18 / speedMul;
+      timeline += pause;
+      await waitSec(pause);
+      continue;
+    }
+
+    if (token === "?" || token === "!") continue;
 
     const lower = token.toLowerCase();
     let entry = getEntry(lower);
     entry = shapeEntry(lower, entry, wordIndex, wordsOnly.length, isQuestion, isExclaim);
 
-    const beatScale = 110 / bpm;
-    let overlapFactor = 0.68;
+    const isLastWord = wordIndex === wordsOnly.length - 1;
 
+    // Build word-level musical duration
+    let musicDuration = 0;
+    const eventStarts = [];
+    let localCursor = timeline;
+
+    // faster/slower globally
+    let overlapFactor = 0.68;
     if (entry.type === "function") overlapFactor = 0.88;
     if (entry.type === "verb") overlapFactor = 0.60;
     if (entry.type === "noun") overlapFactor = 0.64;
     if (entry.type === "adjective") overlapFactor = 0.67;
     if (entry.type === "unknown") overlapFactor = 0.62;
 
-    const wordStartTime = t;
-
-    if (playMode === "notes_voice" || playMode === "voice") {
-      const delayMs = Math.max(0, (wordStartTime - ctx.currentTime) * 1000);
-      const isLastWord = wordIndex === wordsOnly.length - 1;
-      speakWordAt(token, delayMs, isQuestion && isLastWord);
-    }
-
     for (let j = 0; j < entry.motif.length; j++) {
       const chord = entry.motif[j];
-      const dur = entry.dur[j] * beatScale;
+      const dur = entry.dur[j] / speedMul;
       const freqs = chord.map(midiToFreq);
-      const micro = (Math.random() - 0.5) * 0.010;
+      const micro = (Math.random() - 0.5) * 0.008;
+
+      eventStarts.push(localCursor);
 
       if (playMode !== "voice") {
-        playChord(freqs, t + micro, dur, Math.min(0.18, entry.amp), waveform);
+        playChord(freqs, localCursor + micro, dur, Math.min(0.18, entry.amp), waveform);
       }
 
-      t += dur * overlapFactor;
+      localCursor += dur * overlapFactor;
+      musicDuration = Math.max(musicDuration, (localCursor - timeline) + dur * 0.35);
     }
 
-    const next = (tokens[i + 1] || "").toLowerCase();
-    let phraseGap = 0.010 * beatScale;
+    // voice duration estimate
+    const voiceDuration = (playMode === "notes") ? 0 : estimateVoiceDurationSec(token, speedMul, isQuestion && isLastWord);
 
-    if (entry.type === "function") phraseGap = 0.003 * beatScale;
-    if (entry.type === "verb") phraseGap = 0.012 * beatScale;
-    if (entry.type === "noun") phraseGap = 0.015 * beatScale;
-    if (entry.type === "unknown") phraseGap = 0.010 * beatScale;
+    // Start voice and notes together for this word
+    if (playMode === "notes_voice" || playMode === "voice") {
+      speakWordNow(token, speedMul, isQuestion && isLastWord);
+    }
 
-    if (entry.type === "adjective" && classify(next) === "noun") phraseGap *= 0.25;
-    if ((entry.type === "function" || entry.type === "pronoun") && classify(next) === "verb") phraseGap *= 0.35;
+    // phrase gap after the combined event
+    let tailGap = 0.03 / speedMul;
+    if (entry.type === "function") tailGap = 0.01 / speedMul;
+    if (entry.type === "noun") tailGap = 0.035 / speedMul;
+    if (entry.type === "verb") tailGap = 0.028 / speedMul;
+    if (entry.type === "unknown") tailGap = 0.03 / speedMul;
 
-    t += phraseGap;
+    const combinedDuration = Math.max(musicDuration, voiceDuration) + tailGap;
 
     const source = lexicon[lower] ? "known" : "fallback";
     analysis.push(
-      `${token} | ${entry.type} | ${source} | start ${(wordStartTime - (ctx.currentTime + 0.03)).toFixed(3)}s | ` +
+      `${token} | ${entry.type} | ${source} | event ${combinedDuration.toFixed(2)}s | ` +
       entry.motif.map(ch => "[" + ch.join(",") + "]").join(" ")
     );
 
+    timeline += combinedDuration;
+    await waitSec(combinedDuration);
     wordIndex++;
   }
 
-  if (playMode !== "voice") {
+  if (!stopRequested && playMode !== "voice") {
     if (isQuestion) {
-      playChord([midiToFreq(71), midiToFreq(83), midiToFreq(88)], t, 0.24 * (110 / bpm), 0.11, waveform);
+      playChord([midiToFreq(71), midiToFreq(83), midiToFreq(88)], ctx.currentTime, 0.26 / speedMul, 0.11, waveform);
+      await waitSec(0.22 / speedMul);
     } else if (isExclaim) {
-      playChord([midiToFreq(72), midiToFreq(84), midiToFreq(88)], t, 0.20 * (110 / bpm), 0.12, waveform);
+      playChord([midiToFreq(72), midiToFreq(84), midiToFreq(88)], ctx.currentTime, 0.22 / speedMul, 0.12, waveform);
+      await waitSec(0.18 / speedMul);
     } else {
-      playChord([midiToFreq(60), midiToFreq(72), midiToFreq(79)], t, 0.18 * (110 / bpm), 0.09, waveform);
+      playChord([midiToFreq(60), midiToFreq(72), midiToFreq(79)], ctx.currentTime, 0.20 / speedMul, 0.09, waveform);
+      await waitSec(0.16 / speedMul);
     }
   }
 
   document.getElementById("analysis").innerText =
     `Built-in vocabulary size: ${Object.keys(lexicon).length}\n` +
     `Playback mode: ${playMode}\n` +
-    `Question detected: ${isQuestion}\n\n` +
+    `Question detected: ${isQuestion}\n` +
+    `Global speed: ${speedMul.toFixed(2)}x\n\n` +
     analysis.join("\n");
 
-  setStatus(
-    "playing " +
-    (playMode === "notes" ? "notes" : playMode === "voice" ? "voice" : "notes + voice")
-  );
+  if (!stopRequested) {
+    setStatus("finished");
+  }
 }
 
 // --------------------------------------------------
 // UI
 // --------------------------------------------------
-document.getElementById("tempo").addEventListener("input", e => {
-  document.getElementById("tempoValue").innerText = `${e.target.value} BPM`;
-});
-
-document.getElementById("voiceRate").addEventListener("input", e => {
-  document.getElementById("voiceRateValue").innerText = (e.target.value / 100).toFixed(2) + "x";
+document.getElementById("speed").addEventListener("input", e => {
+  document.getElementById("speedValue").innerText = (Number(e.target.value) / 100).toFixed(2) + "x";
 });
 
 document.getElementById("voicePitch").addEventListener("input", e => {
