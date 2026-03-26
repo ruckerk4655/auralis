@@ -14,14 +14,8 @@
     background: #fafafa;
   }
 
-  h2 {
-    margin-bottom: 8px;
-  }
-
-  p {
-    margin-top: 0;
-    color: #444;
-  }
+  h2 { margin-bottom: 8px; }
+  p { margin-top: 0; color: #444; }
 
   textarea {
     width: 100%;
@@ -75,19 +69,12 @@
     max-height: 380px;
     overflow: auto;
   }
-
-  .panel {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 12px;
-  }
 </style>
 </head>
 <body>
 
 <h2>Auralis</h2>
-<p>Type English and hear a layered non-human musical language, optionally with a robotic English voice.</p>
+<p>Type English and hear a layered non-human musical language, optionally with a robotic English voice synced word-by-word to the notes.</p>
 
 <textarea id="text">why do you follow the strange signal from Commander Raleth beyond the silver ocean?</textarea>
 
@@ -102,7 +89,7 @@
   <label>Waveform
     <select id="waveform">
       <option value="triangle">triangle</option>
-      <option value="square">square</option>
+      <option value="square" selected>square</option>
       <option value="sawtooth">sawtooth</option>
       <option value="sine">sine</option>
     </select>
@@ -111,27 +98,31 @@
   <label>Playback Mode
     <select id="playMode">
       <option value="notes">notes only</option>
-      <option value="notes_voice">notes + robotic voice</option>
+      <option value="notes_voice" selected>notes + robotic voice</option>
       <option value="voice">robotic voice only</option>
     </select>
   </label>
 
   <label>Tempo
-    <input id="tempo" type="range" min="70" max="260" value="165">
+    <input id="tempo" type="range" min="60" max="220" value="90">
   </label>
-  <span id="tempoValue">165 BPM</span>
+  <span id="tempoValue">90 BPM</span>
 </div>
 
 <div class="row">
-  <label>Voice Rate
-    <input id="voiceRate" type="range" min="60" max="170" value="108">
+  <label>Voice
+    <select id="voiceSelect"></select>
   </label>
-  <span id="voiceRateValue">1.08x</span>
+
+  <label>Voice Rate
+    <input id="voiceRate" type="range" min="60" max="170" value="100">
+  </label>
+  <span id="voiceRateValue">1.00x</span>
 
   <label>Voice Pitch
-    <input id="voicePitch" type="range" min="50" max="180" value="82">
+    <input id="voicePitch" type="range" min="50" max="180" value="78">
   </label>
-  <span id="voicePitchValue">0.82</span>
+  <span id="voicePitchValue">0.78</span>
 </div>
 
 <div id="status">Status: not started</div>
@@ -141,6 +132,8 @@
 let ctx = null;
 let master = null;
 let activeNodes = [];
+let scheduledSpeechTimers = [];
+let voicesCache = [];
 
 // --------------------------------------------------
 // CORE WORD CLASSES
@@ -178,7 +171,7 @@ const NOUNS = new Set([
   "sun","moon","ship","bridge","door","path","dream","mind","heart",
   "energy","echo","shadow","time","future","past","code","message","name",
   "friend","enemy","city","mountain","field","song","wave","flame","night","day",
-  "captain","commander","doctor","ocean","harbor","crystal","signal","message"
+  "captain","commander","doctor","harbor","crystal"
 ]);
 
 // --------------------------------------------------
@@ -270,6 +263,11 @@ function cloneEntry(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
+function clearSpeechTimers() {
+  scheduledSpeechTimers.forEach(id => clearTimeout(id));
+  scheduledSpeechTimers = [];
+}
+
 async function ensureAudio() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -289,11 +287,12 @@ function stopAll() {
     try { node.disconnect(); } catch(e) {}
   });
   activeNodes = [];
-  window.speechSynthesis.cancel();
+  clearSpeechTimers();
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   setStatus("stopped");
 }
 
-function playChord(freqs, start, dur, gainAmt = 0.12, wave = "triangle") {
+function playChord(freqs, start, dur, gainAmt = 0.12, wave = "square") {
   freqs.forEach((freq, idx) => {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -314,30 +313,89 @@ function playChord(freqs, start, dur, gainAmt = 0.12, wave = "triangle") {
   });
 }
 
-function speakPhrase(text, isQuestion) {
-  if (!("speechSynthesis" in window)) return;
+function getVoicePreferenceOrder() {
+  return [
+    /Google UK English Male/i,
+    /Microsoft David/i,
+    /Microsoft Mark/i,
+    /Daniel/i,
+    /Alex/i,
+    /Fred/i,
+    /Google US English/i,
+    /Samantha/i
+  ];
+}
 
-  window.speechSynthesis.cancel();
-
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = Number(document.getElementById("voiceRate").value) / 100;
-  utter.pitch = Number(document.getElementById("voicePitch").value) / 100;
-  utter.volume = 0.9;
-
-  const voices = window.speechSynthesis.getVoices();
-  const preferred =
-    voices.find(v => /Google US English|Microsoft David|Microsoft Mark|Samantha|Alex/i.test(v.name)) ||
-    voices.find(v => /^en/i.test(v.lang)) ||
-    voices[0];
-
-  if (preferred) utter.voice = preferred;
-
-  if (isQuestion) {
-    utter.pitch = Math.min(2, utter.pitch + 0.18);
-    utter.rate = Math.max(0.8, utter.rate - 0.04);
+function populateVoiceOptions() {
+  if (!("speechSynthesis" in window)) {
+    document.getElementById("voiceSelect").innerHTML = '<option value="">speech not supported</option>';
+    return;
   }
 
-  window.speechSynthesis.speak(utter);
+  const voices = window.speechSynthesis.getVoices();
+  voicesCache = voices;
+
+  const englishVoices = voices.filter(v => /^en/i.test(v.lang));
+  const select = document.getElementById("voiceSelect");
+  select.innerHTML = "";
+
+  if (englishVoices.length === 0) {
+    select.innerHTML = '<option value="">default browser voice</option>';
+    return;
+  }
+
+  const priority = getVoicePreferenceOrder();
+
+  englishVoices.sort((a, b) => {
+    const ai = priority.findIndex(r => r.test(a.name));
+    const bi = priority.findIndex(r => r.test(b.name));
+    const av = ai === -1 ? 999 : ai;
+    const bv = bi === -1 ? 999 : bi;
+    return av - bv || a.name.localeCompare(b.name);
+  });
+
+  englishVoices.forEach((voice, idx) => {
+    const opt = document.createElement("option");
+    opt.value = String(voices.indexOf(voice));
+    opt.textContent = `${voice.name} (${voice.lang})`;
+    select.appendChild(opt);
+  });
+
+  const defaultMatch = englishVoices.find(v =>
+    /Google UK English Male|Microsoft David|Microsoft Mark|Daniel|Alex|Fred/i.test(v.name)
+  ) || englishVoices[0];
+
+  select.value = String(voices.indexOf(defaultMatch));
+}
+
+function getSelectedVoice() {
+  const select = document.getElementById("voiceSelect");
+  const idx = Number(select.value);
+  if (!Number.isNaN(idx) && voicesCache[idx]) return voicesCache[idx];
+  return null;
+}
+
+function speakWordAt(word, delayMs, isQuestionLastWord = false) {
+  if (!("speechSynthesis" in window)) return;
+
+  const timerId = setTimeout(() => {
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.rate = Number(document.getElementById("voiceRate").value) / 100;
+    utter.pitch = Number(document.getElementById("voicePitch").value) / 100;
+    utter.volume = 0.9;
+
+    const selectedVoice = getSelectedVoice();
+    if (selectedVoice) utter.voice = selectedVoice;
+
+    if (isQuestionLastWord) {
+      utter.pitch = Math.min(2, utter.pitch + 0.22);
+      utter.rate = Math.max(0.75, utter.rate - 0.05);
+    }
+
+    window.speechSynthesis.speak(utter);
+  }, Math.max(0, delayMs));
+
+  scheduledSpeechTimers.push(timerId);
 }
 
 function classify(word) {
@@ -373,12 +431,7 @@ function makeKnownEntry(word) {
   const cluster    = [root, root + 1, root + 7, root + 12];
 
   if (type === "function") {
-    return {
-      type,
-      motif: [[root, root + 12], [root + 7, root + 19]],
-      dur: [0.05, 0.07],
-      amp: 0.07
-    };
+    return { type, motif: [[root, root + 12], [root + 7, root + 19]], dur: [0.05, 0.07], amp: 0.07 };
   }
 
   if (type === "verb") {
@@ -465,12 +518,7 @@ function makeUnknownEntry(word) {
     dur.push(i === syllables ? 0.14 : 0.05 + ((h + i) % 3) * 0.02);
   }
 
-  return {
-    type: "unknown",
-    motif,
-    dur,
-    amp: 0.14
-  };
+  return { type: "unknown", motif, dur, amp: 0.14 };
 }
 
 // --------------------------------------------------
@@ -483,17 +531,13 @@ Object.keys(seedLexicon).forEach(k => {
 });
 
 BIG_WORD_BANK.forEach(word => {
-  if (!lexicon[word]) {
-    lexicon[word] = makeKnownEntry(word);
-  }
+  if (!lexicon[word]) lexicon[word] = makeKnownEntry(word);
 });
 
 for (const base of BIG_WORD_BANK) {
   const variants = [base + "s", base + "ed", base + "ing"];
   for (const v of variants) {
-    if (!lexicon[v]) {
-      lexicon[v] = makeKnownEntry(v);
-    }
+    if (!lexicon[v]) lexicon[v] = makeKnownEntry(v);
   }
 }
 
@@ -521,18 +565,12 @@ function shapeEntry(word, entry, position, totalWords, isQuestion, isExclaim) {
   }
 
   let transpose = 0;
-  if (isQuestion) {
-    transpose = Math.round(progress * 5);
-  } else {
-    transpose = Math.round((0.35 - progress) * 2);
-  }
+  if (isQuestion) transpose = Math.round(progress * 5);
+  else transpose = Math.round((0.35 - progress) * 2);
   if (isExclaim) transpose += 2;
 
-  entry.motif = entry.motif.map(chord =>
-    chord.map(n => clamp(n + transpose, 30, 96))
-  );
+  entry.motif = entry.motif.map(chord => chord.map(n => clamp(n + transpose, 30, 96)));
 
-  // Last word handling, especially questions
   if (position === totalWords - 1) {
     if (isQuestion) {
       entry.dur = entry.dur.map(d => d * 1.35);
@@ -574,6 +612,7 @@ async function play() {
 
   let t = ctx.currentTime + 0.03;
   const analysis = [];
+  const phraseStartMs = performance.now();
 
   for (let i = 0, wordIndex = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -596,6 +635,14 @@ async function play() {
     if (entry.type === "adjective") overlapFactor = 0.67;
     if (entry.type === "unknown") overlapFactor = 0.62;
 
+    const wordStartTime = t;
+
+    if (playMode === "notes_voice" || playMode === "voice") {
+      const delayMs = Math.max(0, (wordStartTime - ctx.currentTime) * 1000);
+      const isLastWord = wordIndex === wordsOnly.length - 1;
+      speakWordAt(token, delayMs, isQuestion && isLastWord);
+    }
+
     for (let j = 0; j < entry.motif.length; j++) {
       const chord = entry.motif[j];
       const dur = entry.dur[j] * beatScale;
@@ -617,19 +664,14 @@ async function play() {
     if (entry.type === "noun") phraseGap = 0.015 * beatScale;
     if (entry.type === "unknown") phraseGap = 0.010 * beatScale;
 
-    if (entry.type === "adjective" && classify(next) === "noun") {
-      phraseGap *= 0.25;
-    }
-
-    if ((entry.type === "function" || entry.type === "pronoun") && classify(next) === "verb") {
-      phraseGap *= 0.35;
-    }
+    if (entry.type === "adjective" && classify(next) === "noun") phraseGap *= 0.25;
+    if ((entry.type === "function" || entry.type === "pronoun") && classify(next) === "verb") phraseGap *= 0.35;
 
     t += phraseGap;
 
     const source = lexicon[lower] ? "known" : "fallback";
     analysis.push(
-      `${token} | ${entry.type} | ${source} | ` +
+      `${token} | ${entry.type} | ${source} | start ${(wordStartTime - (ctx.currentTime + 0.03)).toFixed(3)}s | ` +
       entry.motif.map(ch => "[" + ch.join(",") + "]").join(" ")
     );
 
@@ -638,13 +680,7 @@ async function play() {
 
   if (playMode !== "voice") {
     if (isQuestion) {
-      playChord(
-        [midiToFreq(71), midiToFreq(83), midiToFreq(88)],
-        t,
-        0.24 * (110 / bpm),
-        0.11,
-        waveform
-      );
+      playChord([midiToFreq(71), midiToFreq(83), midiToFreq(88)], t, 0.24 * (110 / bpm), 0.11, waveform);
     } else if (isExclaim) {
       playChord([midiToFreq(72), midiToFreq(84), midiToFreq(88)], t, 0.20 * (110 / bpm), 0.12, waveform);
     } else {
@@ -652,12 +688,11 @@ async function play() {
     }
   }
 
-  if (playMode === "notes_voice" || playMode === "voice") {
-    speakPhrase(rawText, isQuestion);
-  }
-
   document.getElementById("analysis").innerText =
-    `Built-in vocabulary size: ${Object.keys(lexicon).length}\n\n` + analysis.join("\n");
+    `Built-in vocabulary size: ${Object.keys(lexicon).length}\n` +
+    `Playback mode: ${playMode}\n` +
+    `Question detected: ${isQuestion}\n\n` +
+    analysis.join("\n");
 
   setStatus(
     "playing " +
@@ -684,6 +719,7 @@ document.getElementById("startBtn").addEventListener("click", async () => {
   await ensureAudio();
   if ("speechSynthesis" in window) {
     window.speechSynthesis.getVoices();
+    populateVoiceOptions();
   }
 });
 
@@ -695,6 +731,11 @@ document.getElementById("beepBtn").addEventListener("click", async () => {
 
 document.getElementById("playBtn").addEventListener("click", play);
 document.getElementById("stopBtn").addEventListener("click", stopAll);
+
+if ("speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = populateVoiceOptions;
+  populateVoiceOptions();
+}
 </script>
 
 </body>
